@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Header } from './components/Header'
 import { UploadZone } from './components/UploadZone'
+import { CaptureStaging } from './components/CaptureStaging'
 import { PageList } from './components/PageList'
 import { DocumentPreview } from './components/DocumentPreview'
 import { FilterControls } from './components/FilterControls'
@@ -9,27 +10,37 @@ import { ExportModal } from './components/ExportModal'
 import { warpPerspective, getDefaultCorners } from './utils/perspective'
 import { applyDocumentFilter, FILTER_TYPES } from './utils/imageFilters'
 import { optimizeImageFile } from './utils/imageOptimizer'
-import { savePagesToStorage, loadPagesFromStorage, clearPagesFromStorage } from './utils/storage'
-import { Download, Loader2, Camera, AlertCircle, Plus, Check } from 'lucide-react'
+import {
+  savePagesToStorage,
+  loadPagesFromStorage,
+  clearPagesFromStorage,
+  saveStagedPhotosToStorage,
+  loadStagedPhotosFromStorage,
+  clearStagedPhotosFromStorage
+} from './utils/storage'
+import { Download, Loader2, Camera, Images, AlertCircle, Plus, Sparkles } from 'lucide-react'
 
 export function App() {
   const [pages, setPages] = useState([])
+  const [stagedPhotos, setStagedPhotos] = useState([])
   const [activePageIndex, setActivePageIndex] = useState(0)
   const [adjustingPageIndex, setAdjustingPageIndex] = useState(null)
   const [showExportModal, setShowExportModal] = useState(false)
   const [isProcessingBatch, setIsProcessingBatch] = useState(false)
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 })
   const [errorMessage, setErrorMessage] = useState('')
-  const [showTakeAnotherPrompt, setShowTakeAnotherPrompt] = useState(false)
 
-  const quickCameraInputRef = useRef(null)
+  // Top bar hidden inputs for editor view
+  const editorCameraInputRef = useRef(null)
+  const editorGalleryInputRef = useRef(null)
 
-  // Load saved pages from storage on startup (survives mobile browser reload)
+  // Load saved state from IndexedDB on startup (survives tab reload)
   useEffect(() => {
     let mounted = true
-    loadPagesFromStorage().then((savedPages) => {
-      if (mounted && savedPages && savedPages.length > 0) {
-        setPages(savedPages)
+    Promise.all([loadPagesFromStorage(), loadStagedPhotosFromStorage()]).then(([savedPages, savedStaged]) => {
+      if (mounted) {
+        if (savedPages && savedPages.length > 0) setPages(savedPages)
+        if (savedStaged && savedStaged.length > 0) setStagedPhotos(savedStaged)
       }
     })
     return () => {
@@ -37,19 +48,20 @@ export function App() {
     }
   }, [])
 
-  // Auto-save pages when updated
+  // Auto-persist staged photos
+  useEffect(() => {
+    saveStagedPhotosToStorage(stagedPhotos)
+  }, [stagedPhotos])
+
+  // Auto-persist converted pages
   useEffect(() => {
     if (pages.length > 0) {
       savePagesToStorage(pages)
     }
   }, [pages])
 
-  // Active page shortcut
   const activePage = pages[activePageIndex] || null
 
-  /**
-   * Helper to load an image File or Blob into an HTMLImageElement
-   */
   const loadImage = (src) => {
     return new Promise((resolve, reject) => {
       const img = new Image()
@@ -61,8 +73,46 @@ export function App() {
   }
 
   /**
-   * Processes a single page item:
-   * Takes original image, warps perspective via corners, and applies current filter.
+   * Stage new raw photos taken with camera or chosen from gallery
+   */
+  const handleAddRawPhotos = async (files) => {
+    if (!files || files.length === 0) return
+    setErrorMessage('')
+
+    const newStaged = []
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      try {
+        const optimized = await optimizeImageFile(file, 1600)
+        newStaged.push({
+          id: `${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+          dataUrl: optimized.dataUrl,
+          width: optimized.width,
+          height: optimized.height,
+          name: file.name || `Foto ${stagedPhotos.length + i + 1}`
+        })
+      } catch (err) {
+        console.error('Error optimizing photo:', err)
+        setErrorMessage('Hubo un problema leyendo una de las fotos.')
+      }
+    }
+
+    if (newStaged.length > 0) {
+      setStagedPhotos((prev) => [...prev, ...newStaged])
+    }
+  }
+
+  const handleRemoveStagedPhoto = (idx) => {
+    setStagedPhotos((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  const handleClearStaged = () => {
+    setStagedPhotos([])
+    clearStagedPhotosFromStorage()
+  }
+
+  /**
+   * Process and convert single page to scanner look
    */
   const renderProcessedPage = async (pageData) => {
     const img = await loadImage(pageData.originalUrl)
@@ -70,11 +120,8 @@ export function App() {
     const nh = img.naturalHeight || img.height
 
     const corners = pageData.corners || getDefaultCorners(nw, nh)
-
-    // 1. Warp perspective
     const warped = warpPerspective(img, corners)
 
-    // 2. Apply document filter
     const filtered = applyDocumentFilter(
       warped,
       pageData.filter || FILTER_TYPES.COLOR_DOC,
@@ -94,74 +141,55 @@ export function App() {
   }
 
   /**
-   * Handles multi-file / batch upload or camera photos
+   * Batch approve and convert all staged photos into scanned pages
    */
-  const handleFilesSelected = async (fileList) => {
-    if (!fileList || fileList.length === 0) return
+  const handleProcessAllStagedPhotos = async () => {
+    if (stagedPhotos.length === 0) return
 
-    setErrorMessage('')
     setIsProcessingBatch(true)
-    setBatchProgress({ current: 0, total: fileList.length })
+    setBatchProgress({ current: 0, total: stagedPhotos.length })
 
-    const newPages = []
+    const convertedPages = []
     const startIdx = pages.length
 
-    for (let i = 0; i < fileList.length; i++) {
-      setBatchProgress({ current: i + 1, total: fileList.length })
-      const file = fileList[i]
+    for (let i = 0; i < stagedPhotos.length; i++) {
+      setBatchProgress({ current: i + 1, total: stagedPhotos.length })
+      const raw = stagedPhotos[i]
       try {
-        // Optimize and resize image to prevent mobile memory overload
-        const optimized = await optimizeImageFile(file, 1600)
-        const nw = optimized.width
-        const nh = optimized.height
-
-        const initialCorners = getDefaultCorners(nw, nh)
-
+        const initialCorners = getDefaultCorners(raw.width, raw.height)
         const rawPage = {
-          id: `${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
-          originalUrl: optimized.dataUrl,
-          width: nw,
-          height: nh,
+          id: raw.id,
+          originalUrl: raw.dataUrl,
+          width: raw.width,
+          height: raw.height,
           corners: initialCorners,
-          filter: FILTER_TYPES.COLOR_DOC, // Default to enhanced color document
+          filter: FILTER_TYPES.COLOR_DOC,
           filterOptions: { brightness: 0, contrast: 0, sharpness: 0 }
         }
 
         const processed = await renderProcessedPage(rawPage)
-        newPages.push(processed)
+        convertedPages.push(processed)
       } catch (err) {
-        console.error('Error processing page', file.name, err)
-        setErrorMessage(`Hubo un detalle procesando "${file.name}". Intenta de nuevo.`)
+        console.error('Error processing staged photo:', err)
       }
     }
 
-    if (newPages.length > 0) {
-      setPages((prev) => [...prev, ...newPages])
-      if (pages.length === 0) {
-        setActivePageIndex(0)
-      } else {
-        setActivePageIndex(startIdx)
-      }
+    setPages((prev) => [...prev, ...convertedPages])
+    setStagedPhotos([])
+    clearStagedPhotosFromStorage()
 
-      // If single file uploaded (likely from camera single shot), prompt user if they want to shoot another page
-      if (fileList.length === 1) {
-        setShowTakeAnotherPrompt(true)
-        setTimeout(() => setShowTakeAnotherPrompt(false), 5000)
-      }
+    if (pages.length === 0) {
+      setActivePageIndex(0)
+    } else {
+      setActivePageIndex(startIdx)
     }
 
     setIsProcessingBatch(false)
   }
 
-  /**
-   * Changes the filter preset of the currently active page
-   */
   const handleFilterChange = async (newFilter) => {
     if (!activePage) return
-    const updatedPage = {
-      ...activePage,
-      filter: newFilter
-    }
+    const updatedPage = { ...activePage, filter: newFilter }
     const rendered = await renderProcessedPage(updatedPage)
     setPages((prev) => {
       const copy = [...prev]
@@ -170,15 +198,9 @@ export function App() {
     })
   }
 
-  /**
-   * Changes fine tuning slider options for active page
-   */
   const handleFilterOptionsChange = async (newOptions) => {
     if (!activePage) return
-    const updatedPage = {
-      ...activePage,
-      filterOptions: newOptions
-    }
+    const updatedPage = { ...activePage, filterOptions: newOptions }
     const rendered = await renderProcessedPage(updatedPage)
     setPages((prev) => {
       const copy = [...prev]
@@ -187,9 +209,6 @@ export function App() {
     })
   }
 
-  /**
-   * Batch action: Apply current page's filter and settings to ALL pages!
-   */
   const handleApplyToAllPages = async () => {
     if (!activePage || pages.length <= 1) return
 
@@ -214,9 +233,6 @@ export function App() {
     setIsProcessingBatch(false)
   }
 
-  /**
-   * Rotates a page 90 degrees
-   */
   const handleRotatePage = async (index) => {
     const page = pages[index]
     if (!page) return
@@ -252,9 +268,6 @@ export function App() {
     })
   }
 
-  /**
-   * Confirms corner adjustment from CornerAdjuster modal
-   */
   const handleConfirmCorners = async (adjustedCorners, updatedImgElement) => {
     if (adjustingPageIndex === null) return
 
@@ -275,9 +288,6 @@ export function App() {
     setAdjustingPageIndex(null)
   }
 
-  /**
-   * Moves a page position in the sequence (reorder)
-   */
   const handleMovePage = (fromIdx, toIdx) => {
     if (toIdx < 0 || toIdx >= pages.length) return
     setPages((prev) => {
@@ -289,9 +299,6 @@ export function App() {
     setActivePageIndex(toIdx)
   }
 
-  /**
-   * Deletes a page
-   */
   const handleDeletePage = (index) => {
     setPages((prev) => {
       const copy = prev.filter((_, idx) => idx !== index)
@@ -302,34 +309,41 @@ export function App() {
     }
   }
 
-  /**
-   * Reset / Clear all
-   */
   const handleReset = () => {
-    if (confirm('¿Estás seguro de que deseas eliminar todas las páginas y empezar de nuevo?')) {
+    if (confirm('¿Deseas reiniciar y eliminar todas las páginas del documento?')) {
       setPages([])
+      setStagedPhotos([])
       setActivePageIndex(0)
       clearPagesFromStorage()
+      clearStagedPhotosFromStorage()
     }
-  }
-
-  const triggerNextCameraShot = () => {
-    setShowTakeAnotherPrompt(false)
-    quickCameraInputRef.current?.click()
   }
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans pb-16">
-      {/* Hidden camera input for consecutive shots */}
+      {/* Hidden inputs attached to DOM for adding more pages from the editor */}
       <input
         type="file"
-        ref={quickCameraInputRef}
+        ref={editorCameraInputRef}
         accept="image/*"
         capture="environment"
         className="hidden"
         onChange={(e) => {
           if (e.target.files) {
-            handleFilesSelected(e.target.files)
+            handleAddRawPhotos(Array.from(e.target.files))
+            e.target.value = ''
+          }
+        }}
+      />
+      <input
+        type="file"
+        ref={editorGalleryInputRef}
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files) {
+            handleAddRawPhotos(Array.from(e.target.files))
             e.target.value = ''
           }
         }}
@@ -338,58 +352,61 @@ export function App() {
       {/* Header */}
       <Header pageCount={pages.length} onReset={handleReset} />
 
-      {/* Error banner if any */}
+      {/* Error alert banner */}
       {errorMessage && (
         <div className="max-w-6xl mx-auto px-4 mt-3 w-full">
           <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-600" />
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
               <span>{errorMessage}</span>
             </div>
-            <button
-              onClick={() => setErrorMessage('')}
-              className="font-bold hover:underline"
-            >
+            <button onClick={() => setErrorMessage('')} className="font-bold hover:underline">
               Cerrar
             </button>
           </div>
         </div>
       )}
 
-      {/* Toast Prompt for Consecutive Camera Shots */}
-      {showTakeAnotherPrompt && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200">
-          <span className="text-xs font-medium">✅ Página agregada. ¿Tomar otra?</span>
-          <button
-            onClick={triggerNextCameraShot}
-            type="button"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 font-bold text-xs rounded-xl text-white shadow-sm"
-          >
-            <Camera className="w-3.5 h-3.5" />
-            <span>Tomar siguiente</span>
-          </button>
-          <button
-            onClick={() => setShowTakeAnotherPrompt(false)}
-            className="text-xs text-slate-400 hover:text-white px-1"
-          >
-            Listo
-          </button>
-        </div>
-      )}
-
       {/* Main Content */}
       <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6">
-        {pages.length === 0 ? (
-          /* Empty State: Upload / Camera Zone */
+        {/* VIEW 1: Taking / Staging multiple photos before approval */}
+        {stagedPhotos.length > 0 ? (
+          <CaptureStaging
+            stagedPhotos={stagedPhotos}
+            onAddFiles={handleAddRawPhotos}
+            onRemovePhoto={handleRemoveStagedPhoto}
+            onClearAll={handleClearStaged}
+            onProceedToProcess={handleProcessAllStagedPhotos}
+          />
+        ) : pages.length === 0 ? (
+          /* VIEW 2: Initial Empty State */
           <div className="my-auto py-6 sm:py-10">
-            <UploadZone onFilesSelected={handleFilesSelected} />
+            <UploadZone onFilesSelected={handleAddRawPhotos} />
           </div>
         ) : (
-          /* Workspace with pages loaded */
+          /* VIEW 3: Editor / Document Scanned Pages */
           <div className="space-y-5">
-            {/* Top Action Bar: Add more & Export buttons */}
+            {/* Top Bar with Add More and Export to PDF */}
             <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 shadow-2xs">
-              <UploadZone onFilesSelected={handleFilesSelected} isAppending={true} />
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => editorCameraInputRef.current?.click()}
+                  type="button"
+                  className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl transition border border-blue-200/80 active:scale-95"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>Tomar más fotos</span>
+                </button>
+
+                <button
+                  onClick={() => editorGalleryInputRef.current?.click()}
+                  type="button"
+                  className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-xl transition border border-slate-200 shadow-2xs active:scale-95"
+                >
+                  <Images className="w-4 h-4 text-indigo-600" />
+                  <span>+ Añadir de galería</span>
+                </button>
+              </div>
 
               <button
                 onClick={() => setShowExportModal(true)}
@@ -401,7 +418,7 @@ export function App() {
               </button>
             </div>
 
-            {/* Pages Thumbnail Strip */}
+            {/* Thumbnail Strip */}
             <PageList
               pages={pages}
               activePageIndex={activePageIndex}
@@ -410,16 +427,7 @@ export function App() {
               onDeletePage={handleDeletePage}
               onRotatePage={handleRotatePage}
               onEditCorners={(idx) => setAdjustingPageIndex(idx)}
-              onAddMorePages={() => {
-                const input = document.createElement('input')
-                input.type = 'file'
-                input.multiple = true
-                input.accept = 'image/*'
-                input.onchange = (e) => {
-                  if (e.target.files) handleFilesSelected(e.target.files)
-                }
-                input.click()
-              }}
+              onAddMorePages={() => editorGalleryInputRef.current?.click()}
             />
 
             {/* Filter Presets and Adjustments */}
@@ -456,10 +464,10 @@ export function App() {
           <div className="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl">
             <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto mb-3" />
             <h4 className="font-bold text-slate-800 text-base mb-1">
-              Procesando fotos...
+              Procesando y convirtiendo documentos...
             </h4>
             <p className="text-xs text-slate-500 mb-3">
-              Optimizando calidad y legibilidad
+              Corrigiendo perspectiva y optimizando nitidez
             </p>
             <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
               <div
