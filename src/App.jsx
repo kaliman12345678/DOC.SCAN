@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Header } from './components/Header'
+import { DocumentHistory } from './components/DocumentHistory'
 import { UploadZone } from './components/UploadZone'
 import { CaptureStaging } from './components/CaptureStaging'
 import { PageList } from './components/PageList'
@@ -7,40 +8,57 @@ import { DocumentPreview } from './components/DocumentPreview'
 import { FilterControls } from './components/FilterControls'
 import { CornerAdjuster } from './components/CornerAdjuster'
 import { ExportModal } from './components/ExportModal'
+import { SignatureModal } from './components/SignatureModal'
+import { WatermarkModal } from './components/WatermarkModal'
+import { IdCardComposer } from './components/IdCardComposer'
 import { warpPerspective, getDefaultCorners } from './utils/perspective'
 import { applyDocumentFilter, FILTER_TYPES } from './utils/imageFilters'
 import { optimizeImageFile } from './utils/imageOptimizer'
 import {
-  savePagesToStorage,
-  loadPagesFromStorage,
-  clearPagesFromStorage,
+  getAllDocuments,
+  saveDocument,
+  deleteDocument,
   saveStagedPhotosToStorage,
   loadStagedPhotosFromStorage,
   clearStagedPhotosFromStorage
 } from './utils/storage'
-import { Download, Loader2, Camera, Images, AlertCircle, Plus, Sparkles } from 'lucide-react'
+import { Download, Loader2, Camera, Images, AlertCircle, ArrowLeft } from 'lucide-react'
 
 export function App() {
+  const [viewMode, setViewMode] = useState('history') // 'history' | 'editor'
+  const [documents, setDocuments] = useState([])
+  const [currentDocId, setCurrentDocId] = useState(null)
+  const [currentDocTitle, setCurrentDocTitle] = useState('Nuevo Escaneo')
   const [pages, setPages] = useState([])
   const [stagedPhotos, setStagedPhotos] = useState([])
   const [activePageIndex, setActivePageIndex] = useState(0)
+
+  // Modals
   const [adjustingPageIndex, setAdjustingPageIndex] = useState(null)
   const [showExportModal, setShowExportModal] = useState(false)
+  const [showSignatureModal, setShowSignatureModal] = useState(false)
+  const [showWatermarkModal, setShowWatermarkModal] = useState(false)
+  const [showIdCardComposer, setShowIdCardComposer] = useState(false)
+
+  // Progress and errors
   const [isProcessingBatch, setIsProcessingBatch] = useState(false)
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 })
   const [errorMessage, setErrorMessage] = useState('')
 
-  // Top bar hidden inputs for editor view
-  const editorCameraInputRef = useRef(null)
-  const editorGalleryInputRef = useRef(null)
+  // Top hidden input refs for camera/gallery in editor
+  const cameraInputRef = useRef(null)
+  const galleryInputRef = useRef(null)
 
-  // Load saved state from IndexedDB on startup (survives tab reload)
+  // Initial load: Fetch document history and staged photos
   useEffect(() => {
     let mounted = true
-    Promise.all([loadPagesFromStorage(), loadStagedPhotosFromStorage()]).then(([savedPages, savedStaged]) => {
+    Promise.all([getAllDocuments(), loadStagedPhotosFromStorage()]).then(([docs, staged]) => {
       if (mounted) {
-        if (savedPages && savedPages.length > 0) setPages(savedPages)
-        if (savedStaged && savedStaged.length > 0) setStagedPhotos(savedStaged)
+        setDocuments(docs || [])
+        if (staged && staged.length > 0) {
+          setStagedPhotos(staged)
+          setViewMode('editor')
+        }
       }
     })
     return () => {
@@ -48,17 +66,39 @@ export function App() {
     }
   }, [])
 
-  // Auto-persist staged photos
+  // Auto-save current document into history when pages change
+  useEffect(() => {
+    if (pages.length > 0) {
+      const docId = currentDocId || `doc_${Date.now()}`
+      if (!currentDocId) setCurrentDocId(docId)
+
+      const docObj = {
+        id: docId,
+        title: currentDocTitle,
+        coverUrl: pages[0]?.previewUrl || pages[0]?.originalUrl,
+        pageCount: pages.length,
+        pages
+      }
+
+      saveDocument(docObj).then((saved) => {
+        if (saved) {
+          setDocuments((prev) => {
+            const exists = prev.some((d) => d.id === saved.id)
+            if (exists) {
+              return prev.map((d) => (d.id === saved.id ? saved : d))
+            } else {
+              return [saved, ...prev]
+            }
+          })
+        }
+      })
+    }
+  }, [pages, currentDocTitle])
+
+  // Persist staged photos
   useEffect(() => {
     saveStagedPhotosToStorage(stagedPhotos)
   }, [stagedPhotos])
-
-  // Auto-persist converted pages
-  useEffect(() => {
-    if (pages.length > 0) {
-      savePagesToStorage(pages)
-    }
-  }, [pages])
 
   const activePage = pages[activePageIndex] || null
 
@@ -73,7 +113,7 @@ export function App() {
   }
 
   /**
-   * Stage new raw photos taken with camera or chosen from gallery
+   * Add raw photos to the staging tray
    */
   const handleAddRawPhotos = async (files) => {
     if (!files || files.length === 0) return
@@ -89,7 +129,7 @@ export function App() {
           dataUrl: optimized.dataUrl,
           width: optimized.width,
           height: optimized.height,
-          name: file.name || `Foto ${stagedPhotos.length + i + 1}`
+          name: file.name || `Página ${stagedPhotos.length + i + 1}`
         })
       } catch (err) {
         console.error('Error optimizing photo:', err)
@@ -99,6 +139,7 @@ export function App() {
 
     if (newStaged.length > 0) {
       setStagedPhotos((prev) => [...prev, ...newStaged])
+      setViewMode('editor')
     }
   }
 
@@ -112,7 +153,7 @@ export function App() {
   }
 
   /**
-   * Process and convert single page to scanner look
+   * Process single page: warp perspective + apply filter
    */
   const renderProcessedPage = async (pageData) => {
     const img = await loadImage(pageData.originalUrl)
@@ -141,7 +182,7 @@ export function App() {
   }
 
   /**
-   * Batch approve and convert all staged photos into scanned pages
+   * Approve and convert all staged photos into document pages
    */
   const handleProcessAllStagedPhotos = async () => {
     if (stagedPhotos.length === 0) return
@@ -249,7 +290,7 @@ export function App() {
     ctx.rotate((90 * Math.PI) / 180)
     ctx.drawImage(img, -nw / 2, -nh / 2)
 
-    const rotatedDataUrl = canvas.toDataURL('image/jpeg', 0.90)
+    const rotatedDataUrl = canvas.toDataURL('image/jpeg', 0.94)
     const newCorners = getDefaultCorners(canvas.width, canvas.height)
 
     const updated = {
@@ -288,43 +329,147 @@ export function App() {
     setAdjustingPageIndex(null)
   }
 
-  const handleMovePage = (fromIdx, toIdx) => {
-    if (toIdx < 0 || toIdx >= pages.length) return
+  // Signature Stamping onto active page
+  const handleApplySignature = async (signatureDataUrl) => {
+    if (!activePage) return
+
+    const baseImg = await loadImage(activePage.processedUrl || activePage.previewUrl)
+    const sigImg = await loadImage(signatureDataUrl)
+
+    const canvas = document.createElement('canvas')
+    canvas.width = baseImg.width
+    canvas.height = baseImg.height
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(baseImg, 0, 0)
+
+    // Stamp signature in bottom right quadrant
+    const sigW = Math.round(canvas.width * 0.32)
+    const sigH = Math.round(sigW * (sigImg.height / sigImg.width))
+    const sigX = canvas.width - sigW - Math.round(canvas.width * 0.08)
+    const sigY = canvas.height - sigH - Math.round(canvas.height * 0.08)
+
+    ctx.drawImage(sigImg, sigX, sigY, sigW, sigH)
+
+    const stampedDataUrl = canvas.toDataURL('image/jpeg', 0.94)
+
     setPages((prev) => {
       const copy = [...prev]
-      const [moved] = copy.splice(fromIdx, 1)
-      copy.splice(toIdx, 0, moved)
+      copy[activePageIndex] = {
+        ...copy[activePageIndex],
+        previewUrl: stampedDataUrl,
+        processedUrl: stampedDataUrl
+      }
       return copy
     })
-    setActivePageIndex(toIdx)
+
+    setShowSignatureModal(false)
   }
 
-  const handleDeletePage = (index) => {
+  // Watermark Stamping onto active page
+  const handleApplyWatermark = async ({ text, opacity }) => {
+    if (!activePage) return
+
+    const baseImg = await loadImage(activePage.processedUrl || activePage.previewUrl)
+
+    const canvas = document.createElement('canvas')
+    canvas.width = baseImg.width
+    canvas.height = baseImg.height
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(baseImg, 0, 0)
+
+    ctx.save()
+    ctx.translate(canvas.width / 2, canvas.height / 2)
+    ctx.rotate((-35 * Math.PI) / 180)
+    ctx.fillStyle = `rgba(180, 20, 20, ${opacity})`
+    ctx.font = `bold ${Math.round(canvas.width * 0.09)}px sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(text, 0, 0)
+    ctx.restore()
+
+    const stampedDataUrl = canvas.toDataURL('image/jpeg', 0.94)
+
     setPages((prev) => {
-      const copy = prev.filter((_, idx) => idx !== index)
+      const copy = [...prev]
+      copy[activePageIndex] = {
+        ...copy[activePageIndex],
+        previewUrl: stampedDataUrl,
+        processedUrl: stampedDataUrl
+      }
       return copy
     })
-    if (activePageIndex >= pages.length - 1) {
-      setActivePageIndex(Math.max(0, pages.length - 2))
+
+    setShowWatermarkModal(false)
+  }
+
+  // Open existing document from history
+  const handleOpenDocument = (doc) => {
+    setCurrentDocId(doc.id)
+    setCurrentDocTitle(doc.title || 'Documento')
+    setPages(doc.pages || [])
+    setActivePageIndex(0)
+    setStagedPhotos([])
+    setViewMode('editor')
+  }
+
+  // Rename document in history
+  const handleRenameDocument = async (docId, newTitle) => {
+    const doc = documents.find((d) => d.id === docId)
+    if (doc) {
+      const updated = { ...doc, title: newTitle }
+      await saveDocument(updated)
+      setDocuments((prev) => prev.map((d) => (d.id === docId ? updated : d)))
+      if (currentDocId === docId) {
+        setCurrentDocTitle(newTitle)
+      }
     }
   }
 
-  const handleReset = () => {
-    if (confirm('¿Deseas reiniciar y eliminar todas las páginas del documento?')) {
-      setPages([])
-      setStagedPhotos([])
-      setActivePageIndex(0)
-      clearPagesFromStorage()
-      clearStagedPhotosFromStorage()
+  // Delete document from history
+  const handleDeleteDocument = async (docId) => {
+    await deleteDocument(docId)
+    setDocuments((prev) => prev.filter((d) => d.id !== docId))
+    if (currentDocId === docId) {
+      handleCloseDocument()
     }
+  }
+
+  // Close current document and return to History
+  const handleCloseDocument = () => {
+    setPages([])
+    setStagedPhotos([])
+    setCurrentDocId(null)
+    setCurrentDocTitle('Nuevo Escaneo')
+    setActivePageIndex(0)
+    clearStagedPhotosFromStorage()
+    setViewMode('history')
+  }
+
+  // Start new scan from camera
+  const handleNewScanCamera = () => {
+    handleCloseDocument()
+    setViewMode('editor')
+    setTimeout(() => cameraInputRef.current?.click(), 100)
+  }
+
+  // Start new scan from gallery
+  const handleNewScanGallery = () => {
+    handleCloseDocument()
+    setViewMode('editor')
+    setTimeout(() => galleryInputRef.current?.click(), 100)
+  }
+
+  // Start ID Card mode
+  const handleNewScanIdCard = () => {
+    setShowIdCardComposer(true)
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans pb-16">
-      {/* Hidden inputs attached to DOM for adding more pages from the editor */}
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
+      {/* Hidden inputs always attached to DOM for camera and gallery */}
       <input
         type="file"
-        ref={editorCameraInputRef}
+        ref={cameraInputRef}
         accept="image/*"
         capture="environment"
         className="hidden"
@@ -337,7 +482,7 @@ export function App() {
       />
       <input
         type="file"
-        ref={editorGalleryInputRef}
+        ref={galleryInputRef}
         accept="image/*"
         multiple
         className="hidden"
@@ -350,14 +495,20 @@ export function App() {
       />
 
       {/* Header */}
-      <Header pageCount={pages.length} onReset={handleReset} />
+      <Header
+        viewMode={viewMode}
+        onSwitchView={setViewMode}
+        onReset={handleCloseDocument}
+        docTitle={currentDocTitle}
+        pageCount={pages.length}
+      />
 
       {/* Error alert banner */}
       {errorMessage && (
         <div className="max-w-6xl mx-auto px-4 mt-3 w-full">
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center justify-between">
+          <div className="p-3 bg-rose-950/80 border border-rose-800 text-rose-200 text-xs rounded-2xl flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
               <span>{errorMessage}</span>
             </div>
             <button onClick={() => setErrorMessage('')} className="font-bold hover:underline">
@@ -367,55 +518,107 @@ export function App() {
         </div>
       )}
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6">
-        {/* VIEW 1: Taking / Staging multiple photos before approval */}
-        {stagedPhotos.length > 0 ? (
-          <CaptureStaging
-            stagedPhotos={stagedPhotos}
-            onAddFiles={handleAddRawPhotos}
-            onRemovePhoto={handleRemoveStagedPhoto}
-            onClearAll={handleClearStaged}
-            onProceedToProcess={handleProcessAllStagedPhotos}
+        {viewMode === 'history' ? (
+          /* ================= VIEW 1: CAMSCANNER DOCUMENT HISTORY ================= */
+          <DocumentHistory
+            documents={documents}
+            onOpenDocument={handleOpenDocument}
+            onNewScanCamera={handleNewScanCamera}
+            onNewScanGallery={handleNewScanGallery}
+            onNewScanIdCard={handleNewScanIdCard}
+            onDeleteDocument={handleDeleteDocument}
+            onRenameDocument={handleRenameDocument}
           />
+        ) : stagedPhotos.length > 0 ? (
+          /* ================= VIEW 2: CAPTURE STAGING TRAY ================= */
+          <div className="space-y-4">
+            <button
+              onClick={() => setViewMode('history')}
+              type="button"
+              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Volver a Mis Documentos</span>
+            </button>
+
+            <CaptureStaging
+              stagedPhotos={stagedPhotos}
+              onAddFiles={handleAddRawPhotos}
+              onRemovePhoto={handleRemoveStagedPhoto}
+              onClearAll={handleClearStaged}
+              onProceedToProcess={handleProcessAllStagedPhotos}
+            />
+          </div>
         ) : pages.length === 0 ? (
-          /* VIEW 2: Initial Empty State */
-          <div className="my-auto py-6 sm:py-10">
-            <UploadZone onFilesSelected={handleAddRawPhotos} />
+          /* ================= VIEW 3: EMPTY SCANNER LAUNCHER ================= */
+          <div className="space-y-4">
+            <button
+              onClick={() => setViewMode('history')}
+              type="button"
+              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Volver a Mis Documentos</span>
+            </button>
+
+            <div className="py-6 sm:py-10">
+              <UploadZone onFilesSelected={handleAddRawPhotos} />
+            </div>
           </div>
         ) : (
-          /* VIEW 3: Editor / Document Scanned Pages */
-          <div className="space-y-5">
-            {/* Top Bar with Add More and Export to PDF */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 shadow-2xs">
-              <div className="flex flex-wrap items-center gap-2">
+          /* ================= VIEW 4: CAMSCANNER PRO DOCUMENT EDITOR ================= */
+          <div className="space-y-5 text-slate-800">
+            {/* Top Bar with Document Title, Add More and Export to PDF */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-3xl border border-slate-200/90 shadow-2xs">
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => editorCameraInputRef.current?.click()}
+                  onClick={() => setViewMode('history')}
                   type="button"
-                  className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl transition border border-blue-200/80 active:scale-95"
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-600 transition"
+                  title="Volver a Mis Documentos"
                 >
-                  <Camera className="w-4 h-4" />
-                  <span>Tomar más fotos</span>
+                  <ArrowLeft className="w-4 h-4" />
                 </button>
 
-                <button
-                  onClick={() => editorGalleryInputRef.current?.click()}
-                  type="button"
-                  className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-xl transition border border-slate-200 shadow-2xs active:scale-95"
-                >
-                  <Images className="w-4 h-4 text-indigo-600" />
-                  <span>+ Añadir de galería</span>
-                </button>
+                <input
+                  type="text"
+                  value={currentDocTitle}
+                  onChange={(e) => setCurrentDocTitle(e.target.value)}
+                  className="text-base sm:text-lg font-bold text-slate-900 bg-transparent hover:bg-slate-50 focus:bg-white px-2 py-1 rounded-xl border border-transparent hover:border-slate-300 focus:border-emerald-500 focus:outline-hidden max-w-[200px] sm:max-w-xs truncate"
+                  placeholder="Título del documento"
+                />
               </div>
 
-              <button
-                onClick={() => setShowExportModal(true)}
-                type="button"
-                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md shadow-blue-600/25 active:scale-95 transition"
-              >
-                <Download className="w-4 h-4" />
-                <span>Exportar PDF ({pages.length})</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => cameraInputRef.current?.click()}
+                  type="button"
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition border border-emerald-200/80 active:scale-95"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>+ Foto</span>
+                </button>
+
+                <button
+                  onClick={() => galleryInputRef.current?.click()}
+                  type="button"
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-xl transition border border-slate-200 shadow-2xs active:scale-95"
+                >
+                  <Images className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>+ Galería</span>
+                </button>
+
+                <button
+                  onClick={() => setShowExportModal(true)}
+                  type="button"
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-emerald-600/25 active:scale-95 transition"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Exportar ({pages.length})</span>
+                </button>
+              </div>
             </div>
 
             {/* Thumbnail Strip */}
@@ -423,11 +626,24 @@ export function App() {
               pages={pages}
               activePageIndex={activePageIndex}
               onSelectPage={setActivePageIndex}
-              onMovePage={handleMovePage}
-              onDeletePage={handleDeletePage}
+              onMovePage={(from, to) => {
+                setPages((prev) => {
+                  const copy = [...prev]
+                  const [moved] = copy.splice(from, 1)
+                  copy.splice(to, 0, moved)
+                  return copy
+                })
+                setActivePageIndex(to)
+              }}
+              onDeletePage={(idx) => {
+                setPages((prev) => prev.filter((_, i) => i !== idx))
+                if (activePageIndex >= pages.length - 1) {
+                  setActivePageIndex(Math.max(0, pages.length - 2))
+                }
+              }}
               onRotatePage={handleRotatePage}
               onEditCorners={(idx) => setAdjustingPageIndex(idx)}
-              onAddMorePages={() => editorGalleryInputRef.current?.click()}
+              onAddMorePages={() => galleryInputRef.current?.click()}
             />
 
             {/* Filter Presets and Adjustments */}
@@ -452,6 +668,8 @@ export function App() {
                 onNextPage={() => setActivePageIndex((i) => Math.min(pages.length - 1, i + 1))}
                 onEditCorners={(idx) => setAdjustingPageIndex(idx)}
                 onRotate={handleRotatePage}
+                onOpenSignature={() => setShowSignatureModal(true)}
+                onOpenWatermark={() => setShowWatermarkModal(true)}
               />
             )}
           </div>
@@ -460,24 +678,24 @@ export function App() {
 
       {/* Batch Processing Overlay */}
       {isProcessingBatch && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl">
-            <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto mb-3" />
-            <h4 className="font-bold text-slate-800 text-base mb-1">
-              Procesando y convirtiendo documentos...
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 text-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl">
+            <Loader2 className="w-10 h-10 animate-spin text-emerald-400 mx-auto mb-3" />
+            <h4 className="font-bold text-base mb-1">
+              Digitalizando documentos...
             </h4>
-            <p className="text-xs text-slate-500 mb-3">
-              Corrigiendo perspectiva y optimizando nitidez
+            <p className="text-xs text-slate-400 mb-3">
+              Alineando bordes y mejorando nitidez
             </p>
-            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
               <div
-                className="bg-blue-600 h-full transition-all duration-200"
+                className="bg-emerald-500 h-full transition-all duration-200"
                 style={{
                   width: `${(batchProgress.current / Math.max(1, batchProgress.total)) * 100}%`
                 }}
               />
             </div>
-            <span className="text-[11px] font-semibold text-slate-400 mt-2 block">
+            <span className="text-[11px] font-semibold text-slate-500 mt-2 block">
               Página {batchProgress.current} de {batchProgress.total}
             </span>
           </div>
@@ -495,12 +713,44 @@ export function App() {
         />
       )}
 
-      {/* Export / Download Modal */}
+      {/* CamScanner Export Modal */}
       {showExportModal && (
         <ExportModal
           pages={pages}
           activePageIndex={activePageIndex}
+          docTitle={currentDocTitle}
           onClose={() => setShowExportModal(false)}
+        />
+      )}
+
+      {/* Signature Modal */}
+      {showSignatureModal && (
+        <SignatureModal
+          onConfirmSignature={handleApplySignature}
+          onClose={() => setShowSignatureModal(false)}
+        />
+      )}
+
+      {/* Watermark Modal */}
+      {showWatermarkModal && (
+        <WatermarkModal
+          onConfirmWatermark={handleApplyWatermark}
+          onClose={() => setShowWatermarkModal(false)}
+        />
+      )}
+
+      {/* ID Card Composer Modal */}
+      {showIdCardComposer && (
+        <IdCardComposer
+          onCompleteIdCard={(composedDoc) => {
+            setShowIdCardComposer(false)
+            setCurrentDocId(composedDoc.id)
+            setCurrentDocTitle(composedDoc.title)
+            setPages([composedDoc])
+            setActivePageIndex(0)
+            setViewMode('editor')
+          }}
+          onClose={() => setShowIdCardComposer(false)}
         />
       )}
     </div>

@@ -1,13 +1,12 @@
 /**
- * IndexedDB persistence for scanned pages and staged photos
- * Prevents mobile browsers from losing documents if the OS reloads the tab
- * after using the phone camera or switching apps.
+ * IndexedDB persistence for Document History & Scanned Pages (CamScanner Style)
+ * Stores full document collections, metadata, covers and individual page data.
  */
 
-const DB_NAME = 'DocScanDB_v2'
-const PAGES_STORE = 'pages_store'
+const DB_NAME = 'DocScan_CamScanner_DB_v3'
+const DOCS_STORE = 'documents_store'
 const STAGED_STORE = 'staged_store'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -15,8 +14,9 @@ function openDB() {
 
     request.onupgradeneeded = (e) => {
       const db = e.target.result
-      if (!db.objectStoreNames.contains(PAGES_STORE)) {
-        db.createObjectStore(PAGES_STORE, { keyPath: 'id' })
+      if (!db.objectStoreNames.contains(DOCS_STORE)) {
+        const store = db.createObjectStore(DOCS_STORE, { keyPath: 'id' })
+        store.createIndex('updatedAt', 'updatedAt', { unique: false })
       }
       if (!db.objectStoreNames.contains(STAGED_STORE)) {
         db.createObjectStore(STAGED_STORE, { keyPath: 'id' })
@@ -28,7 +28,82 @@ function openDB() {
   })
 }
 
-// STAGED PHOTOS (Raw photos taken before confirming conversion)
+// ----------------- DOCUMENT HISTORY (COLLECTION OF SCANS) -----------------
+
+/**
+ * Gets all saved documents sorted by latest update
+ */
+export async function getAllDocuments() {
+  try {
+    const db = await openDB()
+    const tx = db.transaction(DOCS_STORE, 'readonly')
+    const store = tx.objectStore(DOCS_STORE)
+
+    return new Promise((resolve) => {
+      const req = store.getAll()
+      req.onsuccess = () => {
+        const docs = req.result || []
+        // Sort newest first
+        docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+        resolve(docs)
+      }
+      req.onerror = () => resolve([])
+    })
+  } catch (err) {
+    console.warn('Error reading documents from storage:', err)
+    return []
+  }
+}
+
+/**
+ * Saves or updates a document in history
+ */
+export async function saveDocument(document) {
+  try {
+    const db = await openDB()
+    const tx = db.transaction(DOCS_STORE, 'readwrite')
+    const store = tx.objectStore(DOCS_STORE)
+
+    const docToSave = {
+      ...document,
+      updatedAt: Date.now()
+    }
+
+    store.put(docToSave)
+
+    return new Promise((res) => {
+      tx.oncomplete = () => res(docToSave)
+      tx.onerror = () => res(null)
+    })
+  } catch (err) {
+    console.warn('Error saving document to storage:', err)
+    return null
+  }
+}
+
+/**
+ * Deletes a document from history
+ */
+export async function deleteDocument(docId) {
+  try {
+    const db = await openDB()
+    const tx = db.transaction(DOCS_STORE, 'readwrite')
+    const store = tx.objectStore(DOCS_STORE)
+
+    store.delete(docId)
+
+    return new Promise((res) => {
+      tx.oncomplete = () => res(true)
+      tx.onerror = () => res(false)
+    })
+  } catch (err) {
+    console.warn('Error deleting document:', err)
+    return false
+  }
+}
+
+// ----------------- STAGED PHOTOS (TEMPORARY CAPTURE TRAY) -----------------
+
 export async function saveStagedPhotosToStorage(photos) {
   try {
     const db = await openDB()
@@ -79,59 +154,5 @@ export async function clearStagedPhotosFromStorage() {
     tx.objectStore(STAGED_STORE).clear()
   } catch (err) {
     console.warn('Could not clear staged photos:', err)
-  }
-}
-
-// PROCESSED PAGES
-export async function savePagesToStorage(pages) {
-  try {
-    const db = await openDB()
-    const tx = db.transaction(PAGES_STORE, 'readwrite')
-    const store = tx.objectStore(PAGES_STORE)
-
-    await new Promise((res, rej) => {
-      const clearReq = store.clear()
-      clearReq.onsuccess = () => res()
-      clearReq.onerror = () => rej(clearReq.error)
-    })
-
-    for (const page of pages) {
-      store.put(page)
-    }
-
-    return new Promise((res) => {
-      tx.oncomplete = () => res(true)
-      tx.onerror = () => res(false)
-    })
-  } catch (err) {
-    console.warn('Could not persist pages:', err)
-    return false
-  }
-}
-
-export async function loadPagesFromStorage() {
-  try {
-    const db = await openDB()
-    const tx = db.transaction(PAGES_STORE, 'readonly')
-    const store = tx.objectStore(PAGES_STORE)
-
-    return new Promise((resolve) => {
-      const req = store.getAll()
-      req.onsuccess = () => resolve(req.result || [])
-      req.onerror = () => resolve([])
-    })
-  } catch (err) {
-    console.warn('Could not load pages:', err)
-    return []
-  }
-}
-
-export async function clearPagesFromStorage() {
-  try {
-    const db = await openDB()
-    const tx = db.transaction(PAGES_STORE, 'readwrite')
-    tx.objectStore(PAGES_STORE).clear()
-  } catch (err) {
-    console.warn('Could not clear pages:', err)
   }
 }

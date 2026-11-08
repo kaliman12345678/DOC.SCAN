@@ -1,91 +1,118 @@
 import React, { useState } from 'react'
-import { FileDown, ImageDown, Share2, Check, X, FileText, Loader2, Sparkles } from 'lucide-react'
-import { exportToPdf, sharePdf } from '../utils/pdfExport'
+import {
+  FileDown,
+  ImageDown,
+  Share2,
+  Check,
+  X,
+  FileText,
+  Loader2,
+  Sparkles,
+  Layers,
+  FileSpreadsheet,
+  CheckCircle2
+} from 'lucide-react'
+import { exportToPdf, exportSinglePagePdf, downloadPagesAsImages, sharePdf } from '../utils/pdfExport'
 
 export function ExportModal({
   pages,
   activePageIndex,
+  docTitle = 'Documento_Escaneado',
   onClose
 }) {
-  const [docName, setDocName] = useState('Documento_Escaneado')
-  const [pageSize, setPageSize] = useState('a4') // 'a4', 'letter', 'fit'
+  const [name, setName] = useState(docTitle)
+  const [pageSize, setPageSize] = useState('a4') // 'a4' | 'letter'
+  const [quality, setQuality] = useState('high') // 'high' | 'medium'
+  const [showPageNumbers, setShowPageNumbers] = useState(true)
+  const [exportMode, setExportMode] = useState('single_pdf') // 'single_pdf' | 'separate_pdfs' | 'images'
   const [isExporting, setIsExporting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
   const canShare = typeof navigator !== 'undefined' && !!navigator.share
 
-  const handleDownloadPdf = async () => {
+  const cleanPages = pages.map((p) => ({
+    dataUrl: p.processedUrl || p.previewUrl || p.originalUrl,
+    width: p.width || 800,
+    height: p.height || 1100
+  }))
+
+  const handleDownload = async () => {
     try {
       setIsExporting(true)
       setErrorMessage('')
+      const baseFilename = name.trim() || 'Documento_Escaneado'
 
-      const cleanPages = pages.map((p) => ({
-        dataUrl: p.processedUrl || p.previewUrl || p.originalUrl,
-        width: p.width || 800,
-        height: p.height || 1100
-      }))
-
-      await exportToPdf(cleanPages, {
-        filename: `${docName.trim() || 'Documento_Escaneado'}.pdf`,
-        pageSize
-      })
+      if (exportMode === 'single_pdf') {
+        // CamScanner consolidated multi-page PDF with discrete standard sheets
+        await exportToPdf(cleanPages, {
+          filename: `${baseFilename}.pdf`,
+          pageSize,
+          quality,
+          showPageNumbers
+        })
+      } else if (exportMode === 'separate_pdfs') {
+        // Separate individual PDF for every scanned document
+        for (let i = 0; i < cleanPages.length; i++) {
+          await exportSinglePagePdf(
+            cleanPages[i],
+            i,
+            cleanPages.length,
+            `${baseFilename}_pagina_${i + 1}.pdf`
+          )
+        }
+      } else if (exportMode === 'images') {
+        // Individual high resolution JPG photos
+        downloadPagesAsImages(cleanPages, baseFilename)
+      }
 
       setIsSuccess(true)
       setTimeout(() => {
         setIsSuccess(false)
         onClose()
-      }, 1500)
+      }, 1400)
     } catch (err) {
       console.error(err)
-      setErrorMessage(err.message || 'Error al generar el PDF')
+      setErrorMessage(err.message || 'Error durante la exportación')
     } finally {
       setIsExporting(false)
     }
-  }
-
-  const handleDownloadImage = () => {
-    const activePage = pages[activePageIndex] || pages[0]
-    if (!activePage) return
-
-    const src = activePage.processedUrl || activePage.previewUrl || activePage.originalUrl
-    const link = document.createElement('a')
-    link.href = src
-    link.download = `${docName.trim() || 'Documento'}_pag_${activePageIndex + 1}.jpg`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
   }
 
   const handleShare = async () => {
     try {
       setIsExporting(true)
       setErrorMessage('')
+      const baseFilename = name.trim() || 'Documento_Escaneado'
 
-      const cleanPages = pages.map((p) => ({
-        dataUrl: p.processedUrl || p.previewUrl || p.originalUrl,
-        width: p.width || 800,
-        height: p.height || 1100
-      }))
-
-      await sharePdf(cleanPages, `${docName.trim() || 'Documento_Escaneado'}.pdf`)
+      await sharePdf(cleanPages, `${baseFilename}.pdf`, {
+        pageSize,
+        quality,
+        showPageNumbers
+      })
     } catch (err) {
       console.warn(err)
-      setErrorMessage(err.message || 'No se pudo compartir. Puedes usar la opción de Descargar PDF.')
+      setErrorMessage(err.message || 'No se pudo compartir directamente.')
     } finally {
       setIsExporting(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+        {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
               <FileDown className="w-4 h-4" />
             </div>
-            <h3 className="font-bold text-slate-900 text-lg">Descargar o Compartir</h3>
+            <div>
+              <h3 className="font-bold text-slate-900 text-base">Exportar Documentos</h3>
+              <p className="text-[11px] text-slate-500">
+                {pages.length} {pages.length === 1 ? 'página lista' : 'páginas listas'}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -102,111 +129,154 @@ export function ExportModal({
         )}
 
         <div className="space-y-4">
-          {/* Document name input */}
+          {/* File Name */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Nombre del archivo
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Nombre del Archivo
             </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={docName}
-                onChange={(e) => setDocName(e.target.value)}
-                placeholder="Nombre de tu documento"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 font-medium"
-              />
-              <span className="absolute right-3 top-2.5 text-xs font-semibold text-slate-400">
-                .pdf
-              </span>
-            </div>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+              placeholder="Nombre del documento"
+            />
           </div>
 
-          {/* Page Format selector */}
+          {/* Export Mode Selector (CamScanner Style) */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Tamaño de página del PDF
+              Método de Descarga
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {[
-                { id: 'a4', label: 'A4', desc: 'Estándar' },
-                { id: 'letter', label: 'Carta', desc: 'Oficina' },
-                { id: 'fit', label: 'Auto', desc: 'Ajuste foto' }
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setPageSize(opt.id)}
-                  className={`p-2 rounded-xl text-center border text-xs font-bold transition ${
-                    pageSize === opt.id
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  <span className="block">{opt.label}</span>
-                  <span className="block text-[10px] font-normal text-slate-500 mt-0.5">
-                    {opt.desc}
-                  </span>
-                </button>
-              ))}
+                {
+                  id: 'single_pdf',
+                  title: 'PDF Completo',
+                  desc: 'Hojas A4 separadas',
+                  icon: FileText
+                },
+                {
+                  id: 'separate_pdfs',
+                  title: 'PDFs Individuales',
+                  desc: '1 PDF por página',
+                  icon: Layers
+                },
+                {
+                  id: 'images',
+                  title: 'Fotos JPG',
+                  desc: 'Imágenes limpias',
+                  icon: ImageDown
+                }
+              ].map((opt) => {
+                const Icon = opt.icon
+                const isSel = exportMode === opt.id
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setExportMode(opt.id)}
+                    className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between ${
+                      isSel
+                        ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 mb-2 ${isSel ? 'text-emerald-600' : 'text-slate-400'}`} />
+                    <div>
+                      <span className="block text-xs font-bold text-slate-900">{opt.title}</span>
+                      <span className="block text-[10px] text-slate-500 mt-0.5">{opt.desc}</span>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
 
-          <div className="text-xs text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 flex items-center justify-between">
-            <span>Páginas incluidas:</span>
-            <span className="font-bold text-slate-800">
-              {pages.length} {pages.length === 1 ? 'página' : 'páginas'}
-            </span>
-          </div>
+          {/* PDF Page Settings (Only when exporting PDF) */}
+          {exportMode !== 'images' && (
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-700">Tamaño de hoja:</span>
+                <div className="flex gap-1.5">
+                  {[
+                    { id: 'a4', label: 'A4 Estándar' },
+                    { id: 'letter', label: 'Carta (Letter)' }
+                  ].map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setPageSize(p.id)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
+                        pageSize === p.id
+                          ? 'border-emerald-600 bg-white text-emerald-700 shadow-2xs'
+                          : 'border-transparent text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Primary Action: Download PDF */}
+              {/* Page Numbering Checkbox */}
+              <label className="flex items-center justify-between text-xs cursor-pointer select-none">
+                <span className="font-medium text-slate-700">
+                  Incluir numeración de página (ej. "Página 1 de {pages.length}")
+                </span>
+                <input
+                  type="checkbox"
+                  checked={showPageNumbers}
+                  onChange={(e) => setShowPageNumbers(e.target.checked)}
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
+                />
+              </label>
+            </div>
+          )}
+
+          {/* Primary Action Button */}
           <button
-            onClick={handleDownloadPdf}
+            onClick={handleDownload}
             disabled={isExporting}
             type="button"
-            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold text-sm shadow-md shadow-blue-600/20 active:scale-98 transition"
+            className="w-full flex items-center justify-center gap-2 py-4 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold text-sm shadow-lg shadow-emerald-600/25 active:scale-98 transition"
           >
             {isExporting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Generando PDF en alta calidad...</span>
+                <span>Generando documentos...</span>
               </>
             ) : isSuccess ? (
               <>
-                <Check className="w-4 h-4 text-emerald-300" />
-                <span>¡Descarga lista!</span>
+                <Check className="w-4 h-4 text-emerald-200" />
+                <span>¡Descarga completada!</span>
               </>
             ) : (
               <>
                 <FileDown className="w-5 h-5" />
-                <span>Descargar PDF Completo ({pages.length})</span>
+                <span>
+                  {exportMode === 'single_pdf'
+                    ? `Descargar PDF Completo (${pages.length} hojas)`
+                    : exportMode === 'separate_pdfs'
+                    ? `Descargar ${pages.length} PDFs Separados`
+                    : `Descargar ${pages.length} Fotos JPG`}
+                </span>
               </>
             )}
           </button>
 
-          {/* Secondary Actions: Native Share (mobile) or Individual Image */}
-          <div className="flex gap-2 pt-1">
-            {canShare && (
-              <button
-                onClick={handleShare}
-                disabled={isExporting}
-                type="button"
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs active:scale-95 transition"
-              >
-                <Share2 className="w-4 h-4 text-indigo-600" />
-                <span>Compartir (WhatsApp)</span>
-              </button>
-            )}
-
+          {/* Mobile Direct Share */}
+          {canShare && exportMode === 'single_pdf' && (
             <button
-              onClick={handleDownloadImage}
+              onClick={handleShare}
+              disabled={isExporting}
               type="button"
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs active:scale-95 transition"
-              title="Descargar solo la página visible como foto JPG"
+              className="w-full flex items-center justify-center gap-2 py-3 px-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs active:scale-95 transition"
             >
-              <ImageDown className="w-4 h-4 text-emerald-600" />
-              <span>Guardar como Imagen</span>
+              <Share2 className="w-4 h-4 text-emerald-600" />
+              <span>Compartir directo a WhatsApp / Correo</span>
             </button>
-          </div>
+          )}
         </div>
       </div>
     </div>
