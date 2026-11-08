@@ -1,56 +1,71 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <!-- Background Gradient -->
+    <!-- Background Luxury Gradient -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1d4ed8" />
-      <stop offset="50%" stop-color="#2563eb" />
-      <stop offset="100%" stop-color="#0284c7" />
+      <stop offset="0%" stop-color="#070d1e" />
+      <stop offset="45%" stop-color="#0f2b6b" />
+      <stop offset="100%" stop-color="#1e40af" />
     </linearGradient>
-    
+
+    <!-- Metallic Text Gradient -->
+    <linearGradient id="fscTextGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="60%" stop-color="#e0f2fe" />
+      <stop offset="100%" stop-color="#7dd3fc" />
+    </linearGradient>
+
     <!-- Laser Beam Glow -->
-    <linearGradient id="beamGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+    <linearGradient id="laserBeam" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#38bdf8" stop-opacity="0" />
-      <stop offset="25%" stop-color="#38bdf8" stop-opacity="0.8" />
+      <stop offset="20%" stop-color="#38bdf8" stop-opacity="0.9" />
       <stop offset="50%" stop-color="#ffffff" stop-opacity="1" />
-      <stop offset="75%" stop-color="#38bdf8" stop-opacity="0.8" />
+      <stop offset="80%" stop-color="#38bdf8" stop-opacity="0.9" />
       <stop offset="100%" stop-color="#38bdf8" stop-opacity="0" />
     </linearGradient>
 
-    <!-- Document Fold Gradient -->
-    <linearGradient id="foldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#93c5fd" />
-      <stop offset="100%" stop-color="#bfdbfe" />
+    <!-- Corner Sparkle Gradient -->
+    <linearGradient id="goldSparkle" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="100%" stop-color="#eab308" />
     </linearGradient>
 
-    <!-- Shadow filter -->
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="8" result="blur" />
+    <!-- Outer Rim Stroke -->
+    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.6" />
+      <stop offset="50%" stop-color="#1d4ed8" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#60a5fa" stop-opacity="0.7" />
+    </linearGradient>
+
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
       <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
   </defs>
 
-  <!-- Squircle Base Icon -->
-  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
+  <!-- Squircle Base -->
+  <rect width="512" height="512" rx="124" fill="url(#bgGrad)" />
+  <rect x="12" y="12" width="488" height="488" rx="114" fill="none" stroke="url(#rimGrad)" stroke-width="6" />
 
-  <!-- Document Body Shadow -->
-  <path d="M140 100 H310 L392 182 V392 C392 405 381 416 368 416 H140 C127 416 116 405 116 392 V124 C116 111 127 100 140 100 Z" fill="#0f172a" opacity="0.18" transform="translate(0, 10)" />
+  <!-- Monogram FSC (Bold, Geometric & Architectural) -->
+  <g fill="url(#fscTextGrad)">
+    <!-- Letter 'F' -->
+    <path d="M 92 160 H 198 V 212 H 146 V 252 H 188 V 300 H 146 V 360 H 92 Z" />
 
-  <!-- Document Body (Crisp Paper) -->
-  <path d="M140 100 H310 L392 182 V392 C392 405 381 416 368 416 H140 C127 416 116 405 116 392 V124 C116 111 127 100 140 100 Z" fill="#ffffff" />
+    <!-- Letter 'S' -->
+    <path d="M 276 160 C 298 160 316 168 326 182 L 296 216 C 290 208 282 204 274 204 C 262 204 256 210 256 218 C 256 226 262 232 278 238 L 290 242 C 318 252 332 270 332 296 C 332 336 298 360 264 360 C 238 360 216 348 204 330 L 236 298 C 244 308 254 316 266 316 C 278 316 286 310 286 300 C 286 290 278 284 262 278 L 250 274 C 224 264 210 248 210 222 C 210 184 242 160 276 160 Z" />
 
-  <!-- Document Folded Corner -->
-  <path d="M310 100 V162 C310 173 321 182 332 182 H392 Z" fill="url(#foldGrad)" />
+    <!-- Letter 'C' -->
+    <path d="M 390 160 C 430 160 454 186 456 218 L 406 226 C 404 212 396 204 386 204 C 368 204 358 222 358 260 C 358 298 368 316 386 316 C 396 316 404 308 406 294 L 456 302 C 454 334 430 360 390 360 C 336 360 306 320 306 260 C 306 200 336 160 390 160 Z" />
+  </g>
 
-  <!-- Simulated Document Text Lines -->
-  <rect x="160" y="220" width="130" height="14" rx="7" fill="#cbd5e1" />
-  <rect x="160" y="252" width="190" height="14" rx="7" fill="#cbd5e1" />
-  <rect x="160" y="284" width="160" height="14" rx="7" fill="#cbd5e1" />
-  <rect x="160" y="316" width="120" height="14" rx="7" fill="#cbd5e1" />
+  <!-- Horizontal Electric Laser Scan Ray through the center of FSC -->
+  <g filter="url(#neonGlow)">
+    <rect x="50" y="252" width="412" height="16" fill="url(#laserBeam)" />
+    <rect x="66" y="258" width="380" height="4" rx="2" fill="#ffffff" />
+  </g>
 
-  <!-- Scanning Ray (Glowing Laser Beam) -->
-  <rect x="80" y="246" width="352" height="26" fill="url(#beamGrad)" filter="url(#glow)" />
-  <rect x="96" y="256" width="320" height="6" rx="3" fill="#ffffff" />
-
-  <!-- Easy Sparkle / Magic Flash (Top-right accent) -->
-  <path d="M400 90 L412 120 L442 132 L412 144 L400 174 L388 144 L358 132 L388 120 Z" fill="#facc15" />
+  <!-- Magic Sparkle Flash at Top-Right Corner -->
+  <g transform="translate(406, 92)">
+    <path d="M 0 -24 L 6 -6 L 24 0 L 6 6 L 0 24 L -6 6 L -24 0 L -6 -6 Z" fill="url(#goldSparkle)" />
+  </g>
 </svg>
