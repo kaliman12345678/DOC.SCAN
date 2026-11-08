@@ -331,21 +331,46 @@ export function App() {
   const handleConfirmCorners = async (adjustedCorners, updatedImgElement) => {
     if (adjustingPageIndex === null) return
 
-    const page = pages[adjustingPageIndex]
-    const updated = {
-      ...page,
-      originalUrl: updatedImgElement ? updatedImgElement.src : page.originalUrl,
-      corners: adjustedCorners
+    try {
+      const page = pages[adjustingPageIndex]
+      const srcUrl = updatedImgElement ? updatedImgElement.src : page.originalUrl
+      const img = await loadImage(srcUrl)
+
+      // 1. Physically warp and crop the image to the selected corners
+      const warpedCanvas = warpPerspective(img, adjustedCorners)
+
+      // 2. Apply active document filter
+      const filteredCanvas = applyDocumentFilter(
+        warpedCanvas,
+        page.filter || FILTER_TYPES.COLOR_DOC,
+        page.filterOptions || { brightness: 0, contrast: 0, sharpness: 0 }
+      )
+
+      const croppedDataUrl = filteredCanvas.toDataURL('image/jpeg', 0.94)
+
+      // 3. The cropped document is now permanently the page!
+      // The table and background are completely removed.
+      const updated = {
+        ...page,
+        originalUrl: croppedDataUrl, // Clean cropped paper is now the base!
+        previewUrl: croppedDataUrl,
+        processedUrl: croppedDataUrl,
+        width: filteredCanvas.width,
+        height: filteredCanvas.height,
+        corners: getDefaultCorners(filteredCanvas.width, filteredCanvas.height)
+      }
+
+      setPages((prev) => {
+        const copy = [...prev]
+        copy[adjustingPageIndex] = updated
+        return copy
+      })
+    } catch (err) {
+      console.error('Error in handleConfirmCorners:', err)
+      setErrorMessage('No se pudo aplicar el recorte. Intenta nuevamente.')
+    } finally {
+      setAdjustingPageIndex(null)
     }
-
-    const rendered = await renderProcessedPage(updated)
-    setPages((prev) => {
-      const copy = [...prev]
-      copy[adjustingPageIndex] = rendered
-      return copy
-    })
-
-    setAdjustingPageIndex(null)
   }
 
   // Signature Stamping onto active page

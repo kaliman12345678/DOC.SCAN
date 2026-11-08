@@ -3,13 +3,11 @@ import {
   RotateCw,
   Check,
   Maximize2,
-  RefreshCw,
   X,
   Sparkles,
   Move,
-  Layers,
   Minimize2,
-  SlidersHorizontal
+  Loader2
 } from 'lucide-react'
 import { detectDocumentCorners } from '../utils/edgeDetection'
 
@@ -36,30 +34,35 @@ export function CornerAdjuster({
   // Dragging state
   const [activeCornerIdx, setActiveCornerIdx] = useState(null)
   const [activeEdgeIdx, setActiveEdgeIdx] = useState(null)
-  const [edgeDragStart, setEdgeDragStart] = useState(null) // { clientX, clientY, snapshot }
+  const [edgeDragStart, setEdgeDragStart] = useState(null)
 
   // Control mode: 'both' | 'corners' | 'edges'
   const [adjustMode, setAdjustMode] = useState('both')
   const [magnifierPos, setMagnifierPos] = useState({ x: 0, y: 0 })
   const [isDetecting, setIsDetecting] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   // Edge definitions: which two corner indices form each of the 4 edges
   const edges = [
-    { id: 0, name: 'Borde Superior', p1: 0, p2: 1, isHoriz: true },
-    { id: 1, name: 'Borde Derecho', p1: 1, p2: 2, isHoriz: false },
-    { id: 2, name: 'Borde Inferior', p1: 3, p2: 2, isHoriz: true },
-    { id: 3, name: 'Borde Izquierdo', p1: 0, p2: 3, isHoriz: false }
+    { id: 0, name: 'Borde Superior', p1: 0, p2: 1 },
+    { id: 1, name: 'Borde Derecho', p1: 1, p2: 2 },
+    { id: 2, name: 'Borde Inferior', p1: 3, p2: 2 },
+    { id: 3, name: 'Borde Izquierdo', p1: 0, p2: 3 }
   ]
 
-  // Update sizes when image loads and auto-detect boundary
+  // Update sizes when image loads and auto-detect boundary if needed
   const handleImageLoad = (e) => {
     const img = e.target
     const nw = img.naturalWidth
     const nh = img.naturalHeight
     setNaturalSize({ width: nw, height: nh })
 
+    if (imgRef.current) {
+      const rect = imgRef.current.getBoundingClientRect()
+      setDisplaySize({ width: rect.width, height: rect.height })
+    }
+
     if (!corners || corners.length !== 4) {
-      // Run automatic table/document detection
       try {
         const detected = detectDocumentCorners(img)
         if (detected && detected.length === 4) {
@@ -70,7 +73,6 @@ export function CornerAdjuster({
         console.warn('Auto detection fallback:', err)
       }
 
-      // Default fallback: 5% inset
       const mx = nw * 0.05
       const my = nh * 0.05
       setCorners([
@@ -82,12 +84,15 @@ export function CornerAdjuster({
     }
   }
 
-  // Measure display size to map natural coords to screen coords
+  // Measure display size accurately from clientWidth/clientHeight
   useEffect(() => {
     const updateDisplaySize = () => {
       if (imgRef.current) {
-        const rect = imgRef.current.getBoundingClientRect()
-        setDisplaySize({ width: rect.width, height: rect.height })
+        const w = imgRef.current.clientWidth
+        const h = imgRef.current.clientHeight
+        if (w > 0 && h > 0) {
+          setDisplaySize({ width: w, height: h })
+        }
       }
     }
 
@@ -96,8 +101,8 @@ export function CornerAdjuster({
     return () => window.removeEventListener('resize', updateDisplaySize)
   }, [naturalSize])
 
-  const scaleX = naturalSize.width ? displaySize.width / naturalSize.width : 1
-  const scaleY = naturalSize.height ? displaySize.height / naturalSize.height : 1
+  const scaleX = naturalSize.width && displaySize.width ? displaySize.width / naturalSize.width : 1
+  const scaleY = naturalSize.height && displaySize.height ? displaySize.height / naturalSize.height : 1
 
   // ------------------- CORNER DRAGGING -------------------
 
@@ -118,8 +123,11 @@ export function CornerAdjuster({
     const screenX = Math.max(0, Math.min(rect.width, clientX - rect.left))
     const screenY = Math.max(0, Math.min(rect.height, clientY - rect.top))
 
-    const natX = Math.round(screenX / scaleX)
-    const natY = Math.round(screenY / scaleY)
+    const curScaleX = rect.width / (naturalSize.width || 1)
+    const curScaleY = rect.height / (naturalSize.height || 1)
+
+    const natX = Math.round(screenX / curScaleX)
+    const natY = Math.round(screenY / curScaleY)
 
     setCorners((prev) => {
       const updated = [...prev]
@@ -149,15 +157,18 @@ export function CornerAdjuster({
 
   const updateEdgePosition = (e) => {
     if (activeEdgeIdx === null || !edgeDragStart || !imgRef.current) return
+    const rect = imgRef.current.getBoundingClientRect()
     const clientX = e.touches ? e.touches[0].clientX : e.clientX
     const clientY = e.touches ? e.touches[0].clientY : e.clientY
 
-    // Compute delta in natural coordinates
+    const curScaleX = rect.width / (naturalSize.width || 1)
+    const curScaleY = rect.height / (naturalSize.height || 1)
+
     const deltaScreenX = clientX - edgeDragStart.clientX
     const deltaScreenY = clientY - edgeDragStart.clientY
 
-    const deltaNatX = Math.round(deltaScreenX / scaleX)
-    const deltaNatY = Math.round(deltaScreenY / scaleY)
+    const deltaNatX = Math.round(deltaScreenX / curScaleX)
+    const deltaNatY = Math.round(deltaScreenY / curScaleY)
 
     const edge = edges[activeEdgeIdx]
     const nw = naturalSize.width
@@ -168,7 +179,6 @@ export function CornerAdjuster({
       const p1 = edge.p1
       const p2 = edge.p2
 
-      // Apply movement to both endpoints of this edge
       updated[p1].x = Math.max(0, Math.min(nw, edgeDragStart.snapshot[p1].x + deltaNatX))
       updated[p1].y = Math.max(0, Math.min(nh, edgeDragStart.snapshot[p1].y + deltaNatY))
       updated[p2].x = Math.max(0, Math.min(nw, edgeDragStart.snapshot[p2].x + deltaNatX))
@@ -198,7 +208,6 @@ export function CornerAdjuster({
 
   // ------------------- QUICK SMART ACTIONS -------------------
 
-  // Trigger Automatic Paper Boundary Detection
   const handleAutoDetect = () => {
     if (!imgRef.current) return
     setIsDetecting(true)
@@ -216,12 +225,11 @@ export function CornerAdjuster({
     }, 50)
   }
 
-  // Inset edges inward by 3% to cleanly remove any remaining table border
   const handleTrimBorders = () => {
     const nw = naturalSize.width
     const nh = naturalSize.height
-    const dx = nw * 0.03
-    const dy = nh * 0.03
+    const dx = Math.round(nw * 0.03)
+    const dy = Math.round(nh * 0.03)
 
     setCorners((prev) => [
       { x: Math.min(nw, prev[0].x + dx), y: Math.min(nh, prev[0].y + dy) },
@@ -270,7 +278,16 @@ export function CornerAdjuster({
     setCorners(reordered)
   }
 
-  // Calculate polygon points
+  const handleSaveClick = async () => {
+    if (isSaving) return
+    setIsSaving(true)
+    try {
+      await onConfirm(corners, imgRef.current)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const polygonPoints = corners && corners.length === 4
     ? corners.map((pt) => `${pt.x * scaleX},${pt.y * scaleY}`).join(' ')
     : ''
@@ -293,9 +310,9 @@ export function CornerAdjuster({
           </h3>
           <p className="text-xs text-slate-300">
             {adjustMode === 'edges'
-              ? 'Arrastra las 4 líneas para mover bordes completos y quitar la mesa.'
+              ? 'Arrastra las 4 líneas para mover bordes completos y recortar la mesa.'
               : adjustMode === 'corners'
-              ? 'Arrastra las 4 esquinas individualmente para afinar la perspectiva.'
+              ? 'Arrastra las 4 esquinas individualmente para ajustar la perspectiva.'
               : 'Mueve las esquinas o arrastra las barras centrales de cada línea.'}
           </p>
         </div>
@@ -324,7 +341,8 @@ export function CornerAdjuster({
 
         <button
           onClick={onCancel}
-          className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition active:scale-95"
+          disabled={isSaving}
+          className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition active:scale-95 disabled:opacity-50"
           title="Cerrar sin guardar"
         >
           <X className="w-5 h-5" />
@@ -346,19 +364,17 @@ export function CornerAdjuster({
             draggable={false}
           />
 
-          {/* SVG Overlay: Polygon & Interactive Clickable Lines */}
+          {/* SVG Overlay: Polygon & Interactive Lines */}
           {displaySize.width > 0 && corners && corners.length === 4 && (
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none"
               viewBox={`0 0 ${displaySize.width} ${displaySize.height}`}
             >
-              {/* Semi-transparent blue fill for selected document area */}
               <polygon
                 points={polygonPoints}
                 className="fill-blue-500/25 stroke-sky-400 stroke-2"
               />
 
-              {/* Highlight lines connecting the corners */}
               {edges.map((edge) => {
                 const p1 = corners[edge.p1]
                 const p2 = corners[edge.p2]
@@ -382,7 +398,7 @@ export function CornerAdjuster({
             </svg>
           )}
 
-          {/* Edge Midpoint Drag Handles (Allow moving the entire line with 1 touch) */}
+          {/* Edge Midpoint Drag Handles */}
           {displaySize.width > 0 &&
             corners &&
             (adjustMode === 'both' || adjustMode === 'edges') &&
@@ -407,7 +423,6 @@ export function CornerAdjuster({
                   }`}
                   title={`Arrastrar ${edge.name} completo`}
                 >
-                  {/* Large touch area for mobile fingertips */}
                   <div className="w-14 h-14 -m-4 flex items-center justify-center">
                     <div
                       className={`px-2.5 py-1 rounded-full border-2 border-white shadow-lg flex items-center gap-1 ${
@@ -426,7 +441,7 @@ export function CornerAdjuster({
               )
             })}
 
-          {/* Corner Drag Handles (Independent corner movement) */}
+          {/* Corner Drag Handles */}
           {displaySize.width > 0 &&
             corners &&
             (adjustMode === 'both' || adjustMode === 'corners') &&
@@ -464,7 +479,7 @@ export function CornerAdjuster({
               )
             })}
 
-          {/* Magnifier Loupe when dragging a corner (Mobile zoom aid) */}
+          {/* Magnifier Loupe */}
           {activeCornerIdx !== null && corners && (
             <div
               style={{
@@ -500,27 +515,27 @@ export function CornerAdjuster({
         </div>
       </div>
 
-      {/* Bottom Action Bar: Tools & Confirmation */}
+      {/* Bottom Action Bar */}
       <div className="max-w-4xl w-full mx-auto flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-800">
-        {/* Smart Edge & Table Removal Tools */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* 1-Tap Table Removal / Auto Detect Document */}
+          {/* 1-Tap Auto-Detect */}
           <button
             onClick={handleAutoDetect}
-            disabled={isDetecting}
+            disabled={isDetecting || isSaving}
             type="button"
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-sky-200 bg-blue-950 hover:bg-blue-900 border border-blue-700/80 rounded-xl transition active:scale-95 shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-sky-200 bg-blue-950 hover:bg-blue-900 border border-blue-700/80 rounded-xl transition active:scale-95 shadow-xs disabled:opacity-50"
             title="Detecta automáticamente el papel y quita la mesa"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-300" />
             <span>{isDetecting ? 'Detectando...' : 'Auto-detectar papel (Quitar mesa)'}</span>
           </button>
 
-          {/* Quick 3% Inset to trim any leftover table slivers */}
+          {/* Quick 3% Inset */}
           <button
             onClick={handleTrimBorders}
+            disabled={isSaving}
             type="button"
-            className="flex items-center gap-1 px-2.5 py-2 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition border border-slate-700 active:scale-95"
+            className="flex items-center gap-1 px-2.5 py-2 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition border border-slate-700 active:scale-95 disabled:opacity-50"
             title="Recorta un 3% hacia adentro para limpiar bordes de la mesa"
           >
             <Minimize2 className="w-3.5 h-3.5 text-sky-400" />
@@ -529,8 +544,9 @@ export function CornerAdjuster({
 
           <button
             onClick={handleRotate}
+            disabled={isSaving}
             type="button"
-            className="flex items-center gap-1 px-2.5 py-2 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition border border-slate-700 active:scale-95"
+            className="flex items-center gap-1 px-2.5 py-2 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition border border-slate-700 active:scale-95 disabled:opacity-50"
             title="Girar 90°"
           >
             <RotateCw className="w-3.5 h-3.5 text-slate-400" />
@@ -539,8 +555,9 @@ export function CornerAdjuster({
 
           <button
             onClick={handleResetToFull}
+            disabled={isSaving}
             type="button"
-            className="flex items-center gap-1 px-2.5 py-2 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition border border-slate-700 active:scale-95"
+            className="flex items-center gap-1 px-2.5 py-2 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition border border-slate-700 active:scale-95 disabled:opacity-50"
             title="Usar toda la foto"
           >
             <Maximize2 className="w-3.5 h-3.5 text-slate-400" />
@@ -552,18 +569,29 @@ export function CornerAdjuster({
         <div className="flex items-center gap-2">
           <button
             onClick={onCancel}
+            disabled={isSaving}
             type="button"
-            className="px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-white transition"
+            className="px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-white transition disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
-            onClick={() => onConfirm(corners, imgRef.current)}
+            onClick={handleSaveClick}
+            disabled={isSaving}
             type="button"
-            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-blue-600/30 transition active:scale-95"
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-75 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-blue-600/30 transition active:scale-95"
           >
-            <Check className="w-4 h-4" />
-            <span>Enderezar y Guardar</span>
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-sky-200" />
+                <span>Enderezando y Recortando...</span>
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                <span>Enderezar y Guardar</span>
+              </>
+            )}
           </button>
         </div>
       </div>
