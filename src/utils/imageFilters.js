@@ -1,6 +1,7 @@
 /**
- * Image Processing Filters for Document Scanning
- * Focus: High legibility, crisp text, shadow removal, and preservation of color fidelity.
+ * Advanced Document Scanning & Legibility Filters
+ * High-definition background normalization, adaptive shadow removal,
+ * and anti-aliased edge sharpening for maximum readability.
  */
 
 export const FILTER_TYPES = {
@@ -12,10 +13,6 @@ export const FILTER_TYPES = {
 
 /**
  * Applies selected filter preset and fine adjustments to an input canvas.
- * @param {HTMLCanvasElement} inputCanvas
- * @param {string} filterType
- * @param {object} options - { brightness: -50..50, contrast: -50..50, sharpness: 0..100 }
- * @returns {HTMLCanvasElement}
  */
 export function applyDocumentFilter(inputCanvas, filterType = FILTER_TYPES.COLOR_DOC, options = {}) {
   const { brightness = 0, contrast = 0, sharpness = 0 } = options
@@ -37,11 +34,13 @@ export function applyDocumentFilter(inputCanvas, filterType = FILTER_TYPES.COLOR
 
   switch (filterType) {
     case FILTER_TYPES.BW_SCAN:
-      applyAdaptiveThreshold(pixels, w, h)
+      // High Definition B&W: background normalized with anti-aliased crisp text
+      applyHighDefBW(pixels, w, h)
       break
 
     case FILTER_TYPES.COLOR_DOC:
-      applyColorDocumentEnhance(pixels, w, h)
+      // Enhanced color: spotless paper background + vibrant ink & crisp dark text
+      applyHighDefColorDoc(pixels, w, h)
       break
 
     case FILTER_TYPES.GRAYSCALE:
@@ -50,7 +49,6 @@ export function applyDocumentFilter(inputCanvas, filterType = FILTER_TYPES.COLOR
 
     case FILTER_TYPES.ORIGINAL:
     default:
-      // Keep colors, proceed to adjustments if any
       break
   }
 
@@ -59,8 +57,10 @@ export function applyDocumentFilter(inputCanvas, filterType = FILTER_TYPES.COLOR
     applyBrightnessContrast(pixels, brightness, contrast)
   }
 
-  if (sharpness > 0) {
-    applySharpness(pixels, w, h, sharpness / 100)
+  // Apply edge sharpness (default slight sharpening for all document presets to ensure maximum legibility)
+  const effectiveSharpness = sharpness > 0 ? sharpness / 100 : (filterType !== FILTER_TYPES.ORIGINAL ? 0.25 : 0)
+  if (effectiveSharpness > 0) {
+    applySharpness(pixels, w, h, effectiveSharpness)
   }
 
   ctx.putImageData(imageData, 0, 0)
@@ -68,100 +68,42 @@ export function applyDocumentFilter(inputCanvas, filterType = FILTER_TYPES.COLOR
 }
 
 /**
- * Enhances color documents:
- * - Detects background paper color and neutralizes shadows to clean white
- * - Boosts contrast of text, signatures and official stamps
- * - Preserves vibrant ink (blue, red, green)
+ * Computes an integral image from a grayscale Uint8Array
  */
-function applyColorDocumentEnhance(pixels, w, h) {
-  // Step 1: Find approximate background lightness using a quick sample
-  let sampleCount = 0
-  let maxLuma = 0
-  const step = Math.max(1, Math.floor((w * h) / 10000))
-
-  for (let i = 0; i < pixels.length; i += 4 * step) {
-    const r = pixels[i]
-    const g = pixels[i + 1]
-    const b = pixels[i + 2]
-    const luma = 0.299 * r + 0.587 * g + 0.114 * b
-    if (luma > maxLuma) maxLuma = luma
-    sampleCount++
-  }
-
-  // Paper threshold: anything above ~82% of max luma is likely paper background
-  const whitePoint = Math.max(180, Math.min(250, maxLuma * 0.95))
-  const blackPoint = 35
-
-  const range = whitePoint - blackPoint || 1
-  const scale = 255 / range
-
-  for (let i = 0; i < pixels.length; i += 4) {
-    let r = pixels[i]
-    let g = pixels[i + 1]
-    let b = pixels[i + 2]
-
-    // Luminance
-    const luma = 0.299 * r + 0.587 * g + 0.114 * b
-
-    // Color saturation detection (is it colored ink like blue pen or red stamp?)
-    const maxC = Math.max(r, g, b)
-    const minC = Math.min(r, g, b)
-    const chroma = maxC - minC
-
-    if (chroma > 28) {
-      // It's colorful ink! Keep and boost vibrancy slightly
-      const boost = 1.15
-      r = Math.min(255, (r - blackPoint) * scale * boost)
-      g = Math.min(255, (g - blackPoint) * scale * boost)
-      b = Math.min(255, (b - blackPoint) * scale * boost)
-    } else {
-      // Mostly neutral (paper or dark text)
-      if (luma > whitePoint - 20) {
-        // Soft roll-off to pure white paper
-        const t = (luma - (whitePoint - 20)) / 20
-        r = Math.min(255, r * (1 - t) + 255 * t)
-        g = Math.min(255, g * (1 - t) + 255 * t)
-        b = Math.min(255, b * (1 - t) + 255 * t)
-      } else {
-        // Deepen text
-        r = Math.max(0, Math.min(255, (r - blackPoint) * scale))
-        g = Math.max(0, Math.min(255, (g - blackPoint) * scale))
-        b = Math.max(0, Math.min(255, (b - blackPoint) * scale))
-      }
+function computeIntegralImage(gray, w, h) {
+  const integral = new Uint32Array(w * h)
+  for (let y = 0; y < h; y++) {
+    let rowSum = 0
+    const rowOffset = y * w
+    const prevRowOffset = (y - 1) * w
+    for (let x = 0; x < w; x++) {
+      const idx = rowOffset + x
+      rowSum += gray[idx]
+      integral[idx] = (y === 0 ? 0 : integral[prevRowOffset + x]) + rowSum
     }
-
-    pixels[i] = r
-    pixels[i + 1] = g
-    pixels[i + 2] = b
   }
+  return integral
 }
 
 /**
- * Adaptive Integral Image Thresholding (Bradley-Roth / Sauvola style):
- * Completely removes phone shadows, desk shadows, and lighting gradients,
- * making text 100% crisp black on pure white.
+ * High Definition B&W Document Scanner:
+ * Uses local background illumination estimation via 2D Integral Image.
+ * Eliminates all phone shadows, hand shadows and lighting gradients while
+ * strictly preserving font anti-aliasing so thin letters, dots and signatures
+ * NEVER break or become jagged/illegible.
  */
-function applyAdaptiveThreshold(pixels, w, h) {
-  // Step 1: Grayscale conversion & 2D integral image
+function applyHighDefBW(pixels, w, h) {
+  // Step 1: Grayscale representation
   const gray = new Uint8Array(w * h)
   for (let i = 0, j = 0; i < pixels.length; i += 4, j++) {
     gray[j] = (pixels[i] * 77 + pixels[i + 1] * 150 + pixels[i + 2] * 29) >> 8
   }
 
-  // Integral image (sum of pixel values using 32-bit uint for low memory and high speed)
-  const integral = new Uint32Array(w * h)
-  for (let y = 0; y < h; y++) {
-    let rowSum = 0
-    for (let x = 0; x < w; x++) {
-      const idx = y * w + x
-      rowSum += gray[idx]
-      integral[idx] = (y === 0 ? 0 : integral[idx - w]) + rowSum
-    }
-  }
+  // Step 2: 2D Integral image for O(1) local mean background estimation
+  const integral = computeIntegralImage(gray, w, h)
 
-  // Window radius: roughly 1/32 of document width for local adaptation
-  const s = Math.max(7, Math.floor(w / 32))
-  const t = 0.14 // 14% darker than surrounding local average triggers black text
+  // Local window radius: ~1/28th of document width adapts to local shadows
+  const s = Math.max(8, Math.floor(w / 28))
 
   for (let y = 0; y < h; y++) {
     const y1 = Math.max(0, y - s)
@@ -174,19 +116,32 @@ function applyAdaptiveThreshold(pixels, w, h) {
       const x2 = Math.min(w - 1, x + s)
       const count = (x2 - x1 + 1) * (y2 - y1 + 1)
 
-      // Calculate sum within [x1, y1] to [x2, y2] using integral image
       const sum = integral[rowY2 + x2]
         - (x1 > 0 ? integral[rowY2 + (x1 - 1)] : 0)
         - (y1 > 0 ? integral[(y1 - 1) * w + x2] : 0)
         + (x1 > 0 && y1 > 0 ? integral[(y1 - 1) * w + (x1 - 1)] : 0)
 
-      const pixelIdx = (y * w + x) * 4
+      const localMean = sum / count || 1
       const currentVal = gray[y * w + x]
 
-      // Threshold decision
-      const isText = (currentVal * count) < (sum * (1.0 - t))
-      const outVal = isText ? 0 : 255
+      // Ratio of pixel lightness to local background illumination
+      const ratio = currentVal / localMean
 
+      let outVal
+      if (ratio >= 0.88) {
+        // Pure clean paper background (removes all phone/hand shadows)
+        outVal = 255
+      } else if (ratio <= 0.42) {
+        // Solid black ink stroke center
+        outVal = 0
+      } else {
+        // Smooth anti-aliased edge transition for maximum legibility of small text
+        const t = (ratio - 0.42) / (0.88 - 0.42) // 0..1
+        // Smooth non-linear curve to keep text dark and defined
+        outVal = Math.round(Math.pow(t, 1.45) * 255)
+      }
+
+      const pixelIdx = (y * w + x) * 4
       pixels[pixelIdx] = outVal
       pixels[pixelIdx + 1] = outVal
       pixels[pixelIdx + 2] = outVal
@@ -195,16 +150,133 @@ function applyAdaptiveThreshold(pixels, w, h) {
 }
 
 /**
+ * High Definition Color Document Scanner:
+ * Normalizes background to pure spotless white, sharpens text,
+ * and maintains full fidelity of colored signatures, official ink stamps and logos.
+ */
+function applyHighDefColorDoc(pixels, w, h) {
+  // Grayscale for background luminance estimation
+  const gray = new Uint8Array(w * h)
+  for (let i = 0, j = 0; i < pixels.length; i += 4, j++) {
+    gray[j] = (pixels[i] * 77 + pixels[i + 1] * 150 + pixels[i + 2] * 29) >> 8
+  }
+
+  const integral = computeIntegralImage(gray, w, h)
+  const s = Math.max(8, Math.floor(w / 28))
+
+  for (let y = 0; y < h; y++) {
+    const y1 = Math.max(0, y - s)
+    const y2 = Math.min(h - 1, y + s)
+    const rowY1 = y1 * w
+    const rowY2 = y2 * w
+
+    for (let x = 0; x < w; x++) {
+      const x1 = Math.max(0, x - s)
+      const x2 = Math.min(w - 1, x + s)
+      const count = (x2 - x1 + 1) * (y2 - y1 + 1)
+
+      const sum = integral[rowY2 + x2]
+        - (x1 > 0 ? integral[rowY2 + (x1 - 1)] : 0)
+        - (y1 > 0 ? integral[(y1 - 1) * w + x2] : 0)
+        + (x1 > 0 && y1 > 0 ? integral[(y1 - 1) * w + (x1 - 1)] : 0)
+
+      const localMean = Math.max(30, sum / count)
+      const idx = (y * w + x) * 4
+
+      let r = pixels[idx]
+      let g = pixels[idx + 1]
+      let b = pixels[idx + 2]
+
+      // Detect color saturation (is this blue pen, red stamp or logo?)
+      const maxC = Math.max(r, g, b)
+      const minC = Math.min(r, g, b)
+      const chroma = maxC - minC
+
+      // Background illumination normalization factor
+      const normFactor = 255 / localMean
+
+      if (chroma > 24) {
+        // Vibrant colored ink: boost vibrancy and normalize brightness
+        const boost = 1.15
+        r = Math.min(255, Math.round(r * (normFactor * 0.9) * boost))
+        g = Math.min(255, Math.round(g * (normFactor * 0.9) * boost))
+        b = Math.min(255, Math.round(b * (normFactor * 0.9) * boost))
+      } else {
+        // Neutral text or paper
+        const luma = gray[y * w + x]
+        const ratio = luma / localMean
+
+        if (ratio >= 0.88) {
+          // Pure white paper
+          r = 255
+          g = 255
+          b = 255
+        } else if (ratio <= 0.42) {
+          // Dark crisp text
+          r = 0
+          g = 0
+          b = 0
+        } else {
+          // Smooth anti-aliased edge
+          const t = (ratio - 0.42) / (0.88 - 0.42)
+          const val = Math.round(Math.pow(t, 1.45) * 255)
+          r = val
+          g = val
+          b = val
+        }
+      }
+
+      pixels[idx] = r
+      pixels[idx + 1] = g
+      pixels[idx + 2] = b
+    }
+  }
+}
+
+/**
  * High quality grayscale document mode.
  */
 function applyGrayscaleEnhance(pixels, w, h) {
-  for (let i = 0; i < pixels.length; i += 4) {
-    const luma = 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2]
-    // Boost contrast slightly
-    const enhanced = luma > 190 ? Math.min(255, luma * 1.08) : Math.max(0, (luma - 20) * 1.15)
-    pixels[i] = enhanced
-    pixels[i + 1] = enhanced
-    pixels[i + 2] = enhanced
+  const gray = new Uint8Array(w * h)
+  for (let i = 0, j = 0; i < pixels.length; i += 4, j++) {
+    gray[j] = (pixels[i] * 77 + pixels[i + 1] * 150 + pixels[i + 2] * 29) >> 8
+  }
+
+  const integral = computeIntegralImage(gray, w, h)
+  const s = Math.max(8, Math.floor(w / 28))
+
+  for (let y = 0; y < h; y++) {
+    const y1 = Math.max(0, y - s)
+    const y2 = Math.min(h - 1, y + s)
+    const rowY1 = y1 * w
+    const rowY2 = y2 * w
+
+    for (let x = 0; x < w; x++) {
+      const x1 = Math.max(0, x - s)
+      const x2 = Math.min(w - 1, x + s)
+      const count = (x2 - x1 + 1) * (y2 - y1 + 1)
+
+      const sum = integral[rowY2 + x2]
+        - (x1 > 0 ? integral[rowY2 + (x1 - 1)] : 0)
+        - (y1 > 0 ? integral[(y1 - 1) * w + x2] : 0)
+        + (x1 > 0 && y1 > 0 ? integral[(y1 - 1) * w + (x1 - 1)] : 0)
+
+      const localMean = Math.max(30, sum / count)
+      const currentVal = gray[y * w + x]
+      const ratio = currentVal / localMean
+
+      let val
+      if (ratio >= 0.92) {
+        val = 255
+      } else {
+        val = Math.min(255, Math.max(0, Math.round(Math.pow(ratio / 0.92, 1.3) * 255)))
+      }
+
+      const idx = (y * w + x) * 4
+      pixels[idx] = val
+      pixels[idx + 1] = val
+      pixels[idx + 2] = val
+    }
   }
 }
 
@@ -212,8 +284,7 @@ function applyGrayscaleEnhance(pixels, w, h) {
  * Adjusts brightness (-50..50) and contrast (-50..50).
  */
 function applyBrightnessContrast(pixels, brightness, contrast) {
-  // contrast factor formula: factor = (259 * (contrast + 255)) / (255 * (259 - contrast))
-  const c = Math.max(-50, Math.min(50, contrast)) * 2.55 // map to -127..127
+  const c = Math.max(-50, Math.min(50, contrast)) * 2.55
   const factor = (259 * (c + 255)) / (255 * (259 - c))
   const b = brightness * 2.55
 
@@ -227,31 +298,31 @@ function applyBrightnessContrast(pixels, brightness, contrast) {
 }
 
 /**
- * Unsharp masking to improve text edge sharpness.
+ * High quality Unsharp Masking kernel to make text characters pop with sharp, crisp definition.
  */
 function applySharpness(pixels, w, h, amount) {
   if (amount <= 0) return
 
-  // Simple 3x3 Laplacian sharpening kernel
-  // [ 0, -1,  0]
-  // [-1,  5, -1]
-  // [ 0, -1,  0]
   const copy = new Uint8ClampedArray(pixels)
   const kCenter = 1 + 4 * amount
   const kEdge = -amount
 
   for (let y = 1; y < h - 1; y++) {
+    const rowOffset = y * w
+    const prevRowOffset = (y - 1) * w
+    const nextRowOffset = (y + 1) * w
+
     for (let x = 1; x < w - 1; x++) {
-      const idx = (y * w + x) * 4
+      const idx = (rowOffset + x) * 4
 
       for (let c = 0; c < 3; c++) {
         const val =
           kCenter * copy[idx + c] +
           kEdge * (
-            copy[((y - 1) * w + x) * 4 + c] +
-            copy[((y + 1) * w + x) * 4 + c] +
-            copy[(y * w + (x - 1)) * 4 + c] +
-            copy[(y * w + (x + 1)) * 4 + c]
+            copy[(prevRowOffset + x) * 4 + c] +
+            copy[(nextRowOffset + x) * 4 + c] +
+            copy[(rowOffset + (x - 1)) * 4 + c] +
+            copy[(rowOffset + (x + 1)) * 4 + c]
           )
         pixels[idx + c] = Math.max(0, Math.min(255, Math.round(val)))
       }

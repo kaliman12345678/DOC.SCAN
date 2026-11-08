@@ -24,7 +24,7 @@ export function FilterControls({
     {
       id: FILTER_TYPES.BW_SCAN,
       title: 'B&N Escáner',
-      subtitle: 'Sin sombras ni ruido',
+      subtitle: 'Texto Nítido HD',
       icon: FileText,
       color: 'from-slate-700 to-slate-900'
     },

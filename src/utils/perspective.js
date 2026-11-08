@@ -110,8 +110,8 @@ export function warpPerspective(sourceImage, corners, targetWidth, targetHeight)
   let outW = Math.round(targetWidth || Math.max(widthTop, widthBottom))
   let outH = Math.round(targetHeight || Math.max(heightLeft, heightRight))
 
-  // Cap maximum dimension to 1600px to ensure super fast processing and zero mobile memory crashes
-  const MAX_DIM = 1600
+  // Cap maximum dimension to 2048px to ensure razor sharp text and zero mobile memory crashes
+  const MAX_DIM = 2048
   if (outW > MAX_DIM || outH > MAX_DIM) {
     const scale = Math.min(MAX_DIM / outW, MAX_DIM / outH)
     outW = Math.max(100, Math.round(outW * scale))

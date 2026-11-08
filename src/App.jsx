@@ -83,7 +83,7 @@ export function App() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       try {
-        const optimized = await optimizeImageFile(file, 1600)
+        const optimized = await optimizeImageFile(file, 2048)
         newStaged.push({
           id: `${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
           dataUrl: optimized.dataUrl,
@@ -128,7 +128,7 @@ export function App() {
       pageData.filterOptions || { brightness: 0, contrast: 0, sharpness: 0 }
     )
 
-    const finalDataUrl = filtered.toDataURL('image/jpeg', 0.90)
+    const finalDataUrl = filtered.toDataURL('image/jpeg', 0.94)
 
     return {
       ...pageData,

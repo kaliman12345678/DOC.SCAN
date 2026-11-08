@@ -6,7 +6,7 @@
  * - Returns a clean JPEG dataUrl and dimensions
  */
 
-export async function optimizeImageFile(file, maxDimension = 1600) {
+export async function optimizeImageFile(file, maxDimension = 2048) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
 
@@ -52,7 +52,7 @@ export async function optimizeImageFile(file, maxDimension = 1600) {
           ctx.imageSmoothingQuality = 'high'
           ctx.drawImage(img, 0, 0, targetW, targetH)
 
-          const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.90)
+          const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.94)
 
           resolve({
             dataUrl: optimizedDataUrl,
