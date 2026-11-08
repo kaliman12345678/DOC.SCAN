@@ -17,7 +17,7 @@ export function WatermarkModal({ onConfirmWatermark, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white text-slate-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
@@ -46,7 +46,7 @@ export function WatermarkModal({ onConfirmWatermark, onClose }) {
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Ej: CONFIDENCIAL"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold uppercase focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+              className="w-full px-3.5 py-2.5 rounded-xl border-2 border-slate-300 text-slate-950 font-bold text-sm uppercase bg-white placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 focus:outline-hidden"
             />
           </div>
 

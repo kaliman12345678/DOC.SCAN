@@ -123,7 +123,7 @@ export function DocumentHistory({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por nombre de documento..."
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 text-slate-900 font-semibold border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
           />
         </div>
 
@@ -219,7 +219,7 @@ export function DocumentHistory({
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleSaveRename(doc.id)
                           }}
-                          className="w-full px-2 py-1 text-xs font-bold border border-blue-500 rounded-lg focus:outline-hidden"
+                          className="w-full px-2 py-1 text-xs font-bold text-slate-900 bg-white border border-blue-500 rounded-lg focus:outline-hidden"
                           autoFocus
                         />
                         <button

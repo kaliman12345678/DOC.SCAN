@@ -11,39 +11,34 @@ export function Logo({ size = 'md', showSlogan = true }) {
 
   return (
     <div className="flex items-center gap-2.5 select-none">
-      {/* Icon Badge */}
+      {/* Premium Monogram FSC Icon Badge */}
       <div
-        className={`${s.icon} rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-sky-400 p-0.5 shadow-md shadow-blue-500/25 flex items-center justify-center relative overflow-hidden`}
+        className={`${s.icon} rounded-2xl bg-gradient-to-tr from-slate-950 via-blue-900 to-blue-600 p-1 shadow-md shadow-blue-500/30 flex items-center justify-center relative overflow-hidden border border-sky-400/30 shrink-0`}
       >
         <svg
           viewBox="0 0 100 100"
           className="w-full h-full"
-          fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Document Sheet */}
-          <path
-            d="M26 18 H62 L78 34 V82 C78 84.2 76.2 86 74 86 H26 C23.8 86 22 84.2 22 82 V22 C22 19.8 23.8 18 26 18 Z"
-            fill="#ffffff"
-          />
-          {/* Corner Fold */}
-          <path
-            d="M62 18 V30 C62 32.2 63.8 34 66 34 H78 Z"
-            fill="#93c5fd"
-          />
-          {/* Document Lines */}
-          <rect x="32" y="42" width="28" height="3" rx="1.5" fill="#94a3b8" />
-          <rect x="32" y="49" width="38" height="3" rx="1.5" fill="#94a3b8" />
-          <rect x="32" y="56" width="32" height="3" rx="1.5" fill="#94a3b8" />
-          <rect x="32" y="63" width="22" height="3" rx="1.5" fill="#94a3b8" />
+          {/* Letters F S C */}
+          <g fill="#ffffff" fontWeight="900" fontSize="28" fontFamily="system-ui, sans-serif" letterSpacing="-1">
+            <text x="50" y="60" textAnchor="middle" fill="url(#logoFscGrad)">FSC</text>
+          </g>
+
+          <defs>
+            <linearGradient id="logoFscGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#ffffff" />
+              <stop offset="100%" stop-color="#7dd3fc" />
+            </linearGradient>
+          </defs>
 
           {/* Electric Scanner Laser Ray */}
-          <rect x="10" y="48" width="80" height="4" rx="2" fill="#38bdf8" opacity="0.85" />
-          <rect x="18" y="49" width="64" height="2" rx="1" fill="#ffffff" />
+          <rect x="8" y="50" width="84" height="3" rx="1.5" fill="#38bdf8" opacity="0.9" />
+          <rect x="18" y="50.7" width="64" height="1.6" rx="0.8" fill="#ffffff" />
 
-          {/* Magic Star / Easy Instant Sparkle */}
+          {/* Gold Sparkle Accent */}
           <path
-            d="M80 14 L82.5 20.5 L89 23 L82.5 25.5 L80 32 L77.5 25.5 L71 23 L77.5 20.5 Z"
+            d="M82 18 L84 23 L89 25 L84 27 L82 32 L80 27 L75 25 L80 23 Z"
             fill="#facc15"
           />
         </svg>
