@@ -120,7 +120,7 @@ export function IdCardComposer({ onCompleteIdCard, onClose }) {
       <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
               <CreditCard className="w-4 h-4" />
             </div>
             <div>
@@ -148,7 +148,7 @@ export function IdCardComposer({ onCompleteIdCard, onClose }) {
             }}
             className={`p-3 rounded-2xl border-2 text-center cursor-pointer transition ${
               frontImage
-                ? 'border-emerald-500 bg-emerald-50/50'
+                ? 'border-blue-500 bg-blue-50/50'
                 : activeStep === 'front'
                 ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-500/20'
                 : 'border-slate-200 bg-slate-50'
@@ -158,7 +158,7 @@ export function IdCardComposer({ onCompleteIdCard, onClose }) {
               Paso 1: Frente (Anverso)
             </span>
             {frontImage ? (
-              <div className="aspect-[85/54] bg-white rounded-lg overflow-hidden border border-emerald-300 shadow-xs">
+              <div className="aspect-[85/54] bg-white rounded-lg overflow-hidden border border-blue-300 shadow-xs">
                 <img src={frontImage} alt="Frente" className="w-full h-full object-cover" />
               </div>
             ) : (
@@ -177,7 +177,7 @@ export function IdCardComposer({ onCompleteIdCard, onClose }) {
             }}
             className={`p-3 rounded-2xl border-2 text-center cursor-pointer transition ${
               backImage
-                ? 'border-emerald-500 bg-emerald-50/50'
+                ? 'border-blue-500 bg-blue-50/50'
                 : activeStep === 'back'
                 ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-500/20'
                 : 'border-slate-200 bg-slate-50'
@@ -187,7 +187,7 @@ export function IdCardComposer({ onCompleteIdCard, onClose }) {
               Paso 2: Reverso (Atrás)
             </span>
             {backImage ? (
-              <div className="aspect-[85/54] bg-white rounded-lg overflow-hidden border border-emerald-300 shadow-xs">
+              <div className="aspect-[85/54] bg-white rounded-lg overflow-hidden border border-blue-300 shadow-xs">
                 <img src={backImage} alt="Reverso" className="w-full h-full object-cover" />
               </div>
             ) : (
@@ -205,7 +205,7 @@ export function IdCardComposer({ onCompleteIdCard, onClose }) {
             <button
               onClick={handleCompose}
               type="button"
-              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-emerald-600/25 active:scale-98 transition"
+              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-blue-600/25 active:scale-98 transition"
             >
               <Sparkles className="w-4 h-4 text-amber-300" />
               <span>Unir en Hoja A4 y Abrir Escáner</span>

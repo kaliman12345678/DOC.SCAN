@@ -465,7 +465,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
       {/* Hidden inputs always attached to DOM for camera and gallery */}
       <input
         type="file"
@@ -586,7 +586,7 @@ export function App() {
                   type="text"
                   value={currentDocTitle}
                   onChange={(e) => setCurrentDocTitle(e.target.value)}
-                  className="text-base sm:text-lg font-bold text-slate-900 bg-transparent hover:bg-slate-50 focus:bg-white px-2 py-1 rounded-xl border border-transparent hover:border-slate-300 focus:border-emerald-500 focus:outline-hidden max-w-[200px] sm:max-w-xs truncate"
+                  className="text-base sm:text-lg font-bold text-slate-900 bg-transparent hover:bg-slate-50 focus:bg-white px-2 py-1 rounded-xl border border-transparent hover:border-slate-300 focus:border-blue-500 focus:outline-hidden max-w-[200px] sm:max-w-xs truncate"
                   placeholder="Título del documento"
                 />
               </div>
@@ -595,7 +595,7 @@ export function App() {
                 <button
                   onClick={() => cameraInputRef.current?.click()}
                   type="button"
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition border border-emerald-200/80 active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-blue-800 bg-blue-50 hover:bg-blue-100 rounded-xl transition border border-blue-200/80 active:scale-95"
                 >
                   <Camera className="w-3.5 h-3.5" />
                   <span>+ Foto</span>
@@ -606,14 +606,14 @@ export function App() {
                   type="button"
                   className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-xl transition border border-slate-200 shadow-2xs active:scale-95"
                 >
-                  <Images className="w-3.5 h-3.5 text-emerald-600" />
+                  <Images className="w-3.5 h-3.5 text-blue-600" />
                   <span>+ Galería</span>
                 </button>
 
                 <button
                   onClick={() => setShowExportModal(true)}
                   type="button"
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-emerald-600/25 active:scale-95 transition"
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-blue-600/25 active:scale-95 transition"
                 >
                   <Download className="w-4 h-4" />
                   <span>Exportar ({pages.length})</span>
@@ -680,7 +680,7 @@ export function App() {
       {isProcessingBatch && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 text-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl">
-            <Loader2 className="w-10 h-10 animate-spin text-emerald-400 mx-auto mb-3" />
+            <Loader2 className="w-10 h-10 animate-spin text-sky-400 mx-auto mb-3" />
             <h4 className="font-bold text-base mb-1">
               Digitalizando documentos...
             </h4>
@@ -689,7 +689,7 @@ export function App() {
             </p>
             <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
               <div
-                className="bg-emerald-500 h-full transition-all duration-200"
+                className="bg-blue-600 h-full transition-all duration-200"
                 style={{
                   width: `${(batchProgress.current / Math.max(1, batchProgress.total)) * 100}%`
                 }}

@@ -8,12 +8,11 @@ import {
   Download,
   Share2,
   Trash2,
-  MoreVertical,
   Calendar,
   CreditCard,
   Sparkles,
-  ExternalLink,
-  Edit3
+  Edit3,
+  Zap
 } from 'lucide-react'
 import { exportToPdf } from '../utils/pdfExport'
 
@@ -63,30 +62,30 @@ export function DocumentHistory({
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6">
-      {/* Top Banner / Hero CamScanner Style */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 text-white p-6 sm:p-8 shadow-xl border border-emerald-900/40">
+      {/* Top Hero Banner - Blue Palette */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-6 sm:p-8 shadow-xl border border-blue-900/40">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold backdrop-blur-xs">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Escáner Inteligente HD</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/15 border border-blue-500/30 text-sky-300 text-xs font-semibold backdrop-blur-xs">
+              <Zap className="w-3.5 h-3.5 text-sky-400" />
+              <span>Escanear nunca fue tan fácil</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               Mis Documentos
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 max-w-lg">
-              Tus documentos digitalizados guardados en tu dispositivo con máxima privacidad.
+              Tus digitalizaciones guardadas en tu equipo con máxima nitidez y privacidad.
             </p>
           </div>
 
-          {/* Quick Action Buttons */}
+          {/* Quick Action Buttons in Blue Palette */}
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={onNewScanCamera}
               type="button"
-              className="flex items-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-emerald-500/25 active:scale-95 transition"
+              className="flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-blue-600/30 active:scale-95 transition"
             >
-              <Camera className="w-4 h-4" />
+              <Camera className="w-4 h-4 text-sky-200" />
               <span>Escanear con Cámara</span>
             </button>
 
@@ -95,7 +94,7 @@ export function DocumentHistory({
               type="button"
               className="flex items-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm rounded-2xl border border-white/15 backdrop-blur-xs active:scale-95 transition"
             >
-              <Images className="w-4 h-4 text-emerald-400" />
+              <Images className="w-4 h-4 text-sky-400" />
               <span>Subir de Galería</span>
             </button>
 
@@ -103,16 +102,16 @@ export function DocumentHistory({
               onClick={onNewScanIdCard}
               type="button"
               className="flex items-center gap-2 px-3.5 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm rounded-2xl border border-white/15 backdrop-blur-xs active:scale-95 transition"
-              title="Escanear Frente y Reverso de una Cédula / DNI en una sola hoja"
+              title="Escanear Frente y Reverso de una Cédula en una sola hoja"
             >
-              <CreditCard className="w-4 h-4 text-amber-400" />
+              <CreditCard className="w-4 h-4 text-sky-400" />
               <span>Modo Cédula</span>
             </button>
           </div>
         </div>
 
-        {/* Decorative backdrop light */}
-        <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        {/* Decorative ambient blue light */}
+        <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
       </div>
 
       {/* Search and Filters Bar */}
@@ -124,7 +123,7 @@ export function DocumentHistory({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por nombre de documento..."
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white transition"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
           />
         </div>
 
@@ -136,7 +135,7 @@ export function DocumentHistory({
       {/* Documents Grid */}
       {filteredDocs.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
-          <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center text-slate-400 mx-auto mb-4">
+          <div className="w-16 h-16 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-500 mx-auto mb-4">
             <FileText className="w-8 h-8" />
           </div>
           <h3 className="font-bold text-slate-800 text-lg mb-1">
@@ -145,14 +144,14 @@ export function DocumentHistory({
           <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto mb-6">
             {searchQuery
               ? 'Prueba con otro término de búsqueda.'
-              : 'Empieza tomando fotos de tus documentos o subiéndolas desde tu galería.'}
+              : 'FácilScan hace que escanear sea tan simple como tomar una foto.'}
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button
               onClick={onNewScanCamera}
               type="button"
-              className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md shadow-emerald-600/20 active:scale-95 transition"
+              className="flex items-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md shadow-blue-600/20 active:scale-95 transition"
             >
               <Camera className="w-4 h-4" />
               <span>Tomar primera foto</span>
@@ -162,7 +161,7 @@ export function DocumentHistory({
               type="button"
               className="flex items-center gap-2 px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md active:scale-95 transition"
             >
-              <Images className="w-4 h-4 text-emerald-400" />
+              <Images className="w-4 h-4 text-sky-400" />
               <span>Elegir varias fotos</span>
             </button>
           </div>
@@ -186,7 +185,7 @@ export function DocumentHistory({
               <div
                 key={doc.id}
                 onClick={() => onOpenDocument(doc)}
-                className="group relative bg-white rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-emerald-500/50 transition-all duration-200 overflow-hidden cursor-pointer flex flex-col justify-between"
+                className="group relative bg-white rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-blue-500/50 transition-all duration-200 overflow-hidden cursor-pointer flex flex-col justify-between"
               >
                 {/* Document Thumbnail Preview */}
                 <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden border-b border-slate-100 flex items-center justify-center p-3">
@@ -200,7 +199,7 @@ export function DocumentHistory({
 
                   {/* Page count pill */}
                   <div className="absolute bottom-3 right-3 text-[11px] font-bold px-2 py-0.5 rounded-lg bg-slate-950/75 text-white backdrop-blur-xs flex items-center gap-1 shadow-sm">
-                    <FileText className="w-3 h-3 text-emerald-400" />
+                    <FileText className="w-3 h-3 text-sky-400" />
                     <span>{pageCount} {pageCount === 1 ? 'pág' : 'págs'}</span>
                   </div>
                 </div>
@@ -220,19 +219,19 @@ export function DocumentHistory({
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleSaveRename(doc.id)
                           }}
-                          className="w-full px-2 py-1 text-xs font-bold border border-emerald-500 rounded-lg focus:outline-hidden"
+                          className="w-full px-2 py-1 text-xs font-bold border border-blue-500 rounded-lg focus:outline-hidden"
                           autoFocus
                         />
                         <button
                           onClick={() => handleSaveRename(doc.id)}
-                          className="px-2 py-1 text-xs font-bold bg-emerald-600 text-white rounded-lg"
+                          className="px-2 py-1 text-xs font-bold bg-blue-600 text-white rounded-lg"
                         >
                           OK
                         </button>
                       </div>
                     ) : (
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-bold text-slate-800 text-sm truncate flex-1 hover:text-emerald-700 transition">
+                        <h4 className="font-bold text-slate-800 text-sm truncate flex-1 hover:text-blue-700 transition">
                           {doc.title || 'Documento sin título'}
                         </h4>
                         <button
@@ -259,7 +258,7 @@ export function DocumentHistory({
                     <button
                       onClick={(e) => handleQuickDownloadPdf(e, doc)}
                       type="button"
-                      className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200/60 transition active:scale-95"
+                      className="flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-xl border border-blue-200/70 transition active:scale-95"
                       title="Descargar PDF directo"
                     >
                       <Download className="w-3.5 h-3.5" />

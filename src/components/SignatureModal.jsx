@@ -70,7 +70,7 @@ export function SignatureModal({ onConfirmSignature, onClose }) {
       <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
               <PenTool className="w-4 h-4" />
             </div>
             <div>
@@ -101,7 +101,7 @@ export function SignatureModal({ onConfirmSignature, onClose }) {
                 onClick={() => setInkColor(col.id)}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium transition ${
                   inkColor === col.id
-                    ? 'border-emerald-600 bg-emerald-50 text-emerald-700 ring-2 ring-emerald-500/20'
+                    ? 'border-blue-600 bg-blue-50 text-blue-700 ring-2 ring-blue-500/20'
                     : 'border-slate-200 text-slate-600'
                 }`}
               >
@@ -162,7 +162,7 @@ export function SignatureModal({ onConfirmSignature, onClose }) {
               onClick={handleConfirm}
               disabled={!hasDrawn}
               type="button"
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/20 active:scale-95 transition"
+              className="flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/20 active:scale-95 transition"
             >
               <Check className="w-4 h-4" />
               <span>Estampar Firma</span>

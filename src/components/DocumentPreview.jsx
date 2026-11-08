@@ -63,7 +63,7 @@ export function DocumentPreview({
           <button
             onClick={() => onOpenSignature(pageIndex)}
             type="button"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/70 transition active:scale-95"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/70 transition active:scale-95"
             title="Añadir tu firma manuscrita"
           >
             <PenTool className="w-3.5 h-3.5" />
@@ -136,7 +136,7 @@ export function DocumentPreview({
           <button
             onClick={onPrevPage}
             type="button"
-            className="absolute left-2 z-10 p-2 rounded-full bg-white/90 shadow-md text-slate-700 hover:bg-white hover:text-emerald-600 transition"
+            className="absolute left-2 z-10 p-2 rounded-full bg-white/90 shadow-md text-slate-700 hover:bg-white hover:text-blue-600 transition"
             title="Página anterior"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -147,7 +147,7 @@ export function DocumentPreview({
           <button
             onClick={onNextPage}
             type="button"
-            className="absolute right-2 z-10 p-2 rounded-full bg-white/90 shadow-md text-slate-700 hover:bg-white hover:text-emerald-600 transition"
+            className="absolute right-2 z-10 p-2 rounded-full bg-white/90 shadow-md text-slate-700 hover:bg-white hover:text-blue-600 transition"
             title="Página siguiente"
           >
             <ChevronRight className="w-5 h-5" />

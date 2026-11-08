@@ -7,10 +7,7 @@ import {
   X,
   FileText,
   Loader2,
-  Sparkles,
-  Layers,
-  FileSpreadsheet,
-  CheckCircle2
+  Layers
 } from 'lucide-react'
 import { exportToPdf, exportSinglePagePdf, downloadPagesAsImages, sharePdf } from '../utils/pdfExport'
 
@@ -44,7 +41,6 @@ export function ExportModal({
       const baseFilename = name.trim() || 'Documento_Escaneado'
 
       if (exportMode === 'single_pdf') {
-        // CamScanner consolidated multi-page PDF with discrete standard sheets
         await exportToPdf(cleanPages, {
           filename: `${baseFilename}.pdf`,
           pageSize,
@@ -52,7 +48,6 @@ export function ExportModal({
           showPageNumbers
         })
       } else if (exportMode === 'separate_pdfs') {
-        // Separate individual PDF for every scanned document
         for (let i = 0; i < cleanPages.length; i++) {
           await exportSinglePagePdf(
             cleanPages[i],
@@ -62,7 +57,6 @@ export function ExportModal({
           )
         }
       } else if (exportMode === 'images') {
-        // Individual high resolution JPG photos
         downloadPagesAsImages(cleanPages, baseFilename)
       }
 
@@ -104,7 +98,7 @@ export function ExportModal({
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
               <FileDown className="w-4 h-4" />
             </div>
             <div>
@@ -138,12 +132,12 @@ export function ExportModal({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
               placeholder="Nombre del documento"
             />
           </div>
 
-          {/* Export Mode Selector (CamScanner Style) */}
+          {/* Export Mode Selector */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
               Método de Descarga
@@ -178,11 +172,11 @@ export function ExportModal({
                     onClick={() => setExportMode(opt.id)}
                     className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between ${
                       isSel
-                        ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-500/20'
+                        ? 'border-blue-600 bg-blue-50/70 ring-2 ring-blue-500/20'
                         : 'border-slate-200 hover:border-slate-300 bg-white'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 mb-2 ${isSel ? 'text-emerald-600' : 'text-slate-400'}`} />
+                    <Icon className={`w-4 h-4 mb-2 ${isSel ? 'text-blue-600' : 'text-slate-400'}`} />
                     <div>
                       <span className="block text-xs font-bold text-slate-900">{opt.title}</span>
                       <span className="block text-[10px] text-slate-500 mt-0.5">{opt.desc}</span>
@@ -193,7 +187,7 @@ export function ExportModal({
             </div>
           </div>
 
-          {/* PDF Page Settings (Only when exporting PDF) */}
+          {/* PDF Page Settings */}
           {exportMode !== 'images' && (
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
               <div className="flex items-center justify-between text-xs">
@@ -209,7 +203,7 @@ export function ExportModal({
                       onClick={() => setPageSize(p.id)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
                         pageSize === p.id
-                          ? 'border-emerald-600 bg-white text-emerald-700 shadow-2xs'
+                          ? 'border-blue-600 bg-white text-blue-700 shadow-2xs'
                           : 'border-transparent text-slate-600 hover:bg-slate-200'
                       }`}
                     >
@@ -228,7 +222,7 @@ export function ExportModal({
                   type="checkbox"
                   checked={showPageNumbers}
                   onChange={(e) => setShowPageNumbers(e.target.checked)}
-                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 accent-blue-600"
                 />
               </label>
             </div>
@@ -239,7 +233,7 @@ export function ExportModal({
             onClick={handleDownload}
             disabled={isExporting}
             type="button"
-            className="w-full flex items-center justify-center gap-2 py-4 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold text-sm shadow-lg shadow-emerald-600/25 active:scale-98 transition"
+            className="w-full flex items-center justify-center gap-2 py-4 px-4 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold text-sm shadow-lg shadow-blue-600/25 active:scale-98 transition"
           >
             {isExporting ? (
               <>
@@ -248,7 +242,7 @@ export function ExportModal({
               </>
             ) : isSuccess ? (
               <>
-                <Check className="w-4 h-4 text-emerald-200" />
+                <Check className="w-4 h-4 text-blue-200" />
                 <span>¡Descarga completada!</span>
               </>
             ) : (
@@ -273,7 +267,7 @@ export function ExportModal({
               type="button"
               className="w-full flex items-center justify-center gap-2 py-3 px-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs active:scale-95 transition"
             >
-              <Share2 className="w-4 h-4 text-emerald-600" />
+              <Share2 className="w-4 h-4 text-blue-600" />
               <span>Compartir directo a WhatsApp / Correo</span>
             </button>
           )}

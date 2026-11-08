@@ -46,7 +46,7 @@ export function WatermarkModal({ onConfirmWatermark, onClose }) {
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Ej: CONFIDENCIAL"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold uppercase focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold uppercase focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
             />
           </div>
 
@@ -63,7 +63,7 @@ export function WatermarkModal({ onConfirmWatermark, onClose }) {
                   onClick={() => setText(p)}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
                     text === p
-                      ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
                       : 'border-slate-200 text-slate-600 hover:border-slate-300'
                   }`}
                 >
@@ -85,7 +85,7 @@ export function WatermarkModal({ onConfirmWatermark, onClose }) {
               max="50"
               value={opacity}
               onChange={(e) => setOpacity(parseInt(e.target.value, 10))}
-              className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+              className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
             />
           </div>
 
@@ -101,7 +101,7 @@ export function WatermarkModal({ onConfirmWatermark, onClose }) {
               onClick={handleConfirm}
               disabled={!text.trim()}
               type="button"
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/20 active:scale-95 transition"
+              className="flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/20 active:scale-95 transition"
             >
               <Check className="w-4 h-4" />
               <span>Aplicar a la Página</span>

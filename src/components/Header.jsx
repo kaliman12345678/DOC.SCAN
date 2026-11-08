@@ -1,5 +1,6 @@
 import React from 'react'
-import { FileScan, ShieldCheck, FolderGit2, History, Plus } from 'lucide-react'
+import { Logo } from './Logo'
+import { History, Plus } from 'lucide-react'
 
 export function Header({
   viewMode, // 'history' | 'editor'
@@ -14,24 +15,9 @@ export function Header({
         {/* Brand Logo & Name */}
         <div
           onClick={() => onSwitchView('history')}
-          className="flex items-center gap-2.5 cursor-pointer select-none"
+          className="cursor-pointer"
         >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 font-black shadow-md shadow-emerald-500/20">
-            <FileScan className="w-5 h-5 stroke-[2.5]" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-base font-extrabold tracking-tight text-white">
-                CamScan
-              </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                PRO
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 hidden sm:block">
-              Escáner móvil y HD en navegador
-            </p>
-          </div>
+          <Logo size="md" showSlogan={true} />
         </div>
 
         {/* View Switcher / Actions */}
@@ -42,11 +28,11 @@ export function Header({
             type="button"
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition ${
               viewMode === 'history'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                ? 'bg-blue-600/20 text-sky-300 border border-blue-500/40 shadow-xs'
                 : 'text-slate-300 hover:bg-slate-800'
             }`}
           >
-            <History className="w-3.5 h-3.5" />
+            <History className="w-3.5 h-3.5 text-sky-400" />
             <span>Mis Documentos</span>
           </button>
 
