@@ -12,6 +12,7 @@ import { SignatureModal } from './components/SignatureModal'
 import { WatermarkModal } from './components/WatermarkModal'
 import { IdCardComposer } from './components/IdCardComposer'
 import { warpPerspective, getDefaultCorners } from './utils/perspective'
+import { detectDocumentCorners } from './utils/edgeDetection'
 import { applyDocumentFilter, FILTER_TYPES } from './utils/imageFilters'
 import { optimizeImageFile } from './utils/imageOptimizer'
 import {
@@ -160,7 +161,18 @@ export function App() {
     const nw = img.naturalWidth || img.width
     const nh = img.naturalHeight || img.height
 
-    const corners = pageData.corners || getDefaultCorners(nw, nh)
+    let corners = pageData.corners
+    if (!corners || corners.length !== 4) {
+      try {
+        corners = detectDocumentCorners(img)
+      } catch (err) {
+        corners = getDefaultCorners(nw, nh)
+      }
+    }
+    if (!corners) {
+      corners = getDefaultCorners(nw, nh)
+    }
+
     const warped = warpPerspective(img, corners)
 
     const filtered = applyDocumentFilter(
@@ -197,13 +209,20 @@ export function App() {
       setBatchProgress({ current: i + 1, total: stagedPhotos.length })
       const raw = stagedPhotos[i]
       try {
-        const initialCorners = getDefaultCorners(raw.width, raw.height)
+        const imgObj = await loadImage(raw.dataUrl)
+        let initialCorners = null
+        try {
+          initialCorners = detectDocumentCorners(imgObj)
+        } catch (e) {
+          initialCorners = getDefaultCorners(raw.width, raw.height)
+        }
+
         const rawPage = {
           id: raw.id,
           originalUrl: raw.dataUrl,
           width: raw.width,
           height: raw.height,
-          corners: initialCorners,
+          corners: initialCorners || getDefaultCorners(raw.width, raw.height),
           filter: FILTER_TYPES.COLOR_DOC,
           filterOptions: { brightness: 0, contrast: 0, sharpness: 0 }
         }
