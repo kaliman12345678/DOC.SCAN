@@ -11,6 +11,7 @@ import { ExportModal } from './components/ExportModal'
 import { SignatureModal } from './components/SignatureModal'
 import { WatermarkModal } from './components/WatermarkModal'
 import { IdCardComposer } from './components/IdCardComposer'
+import { PhotoOptimizerModal } from './components/PhotoOptimizerModal'
 import { warpPerspective, getDefaultCorners } from './utils/perspective'
 import { detectDocumentCorners } from './utils/edgeDetection'
 import { applyDocumentFilter, FILTER_TYPES } from './utils/imageFilters'
@@ -23,7 +24,7 @@ import {
   loadStagedPhotosFromStorage,
   clearStagedPhotosFromStorage
 } from './utils/storage'
-import { Download, Loader2, Camera, Images, AlertCircle, ArrowLeft } from 'lucide-react'
+import { Download, Loader2, Camera, Images, AlertCircle, ArrowLeft, Sparkles } from 'lucide-react'
 
 export function App() {
   const [viewMode, setViewMode] = useState('history') // 'history' | 'editor'
@@ -40,6 +41,9 @@ export function App() {
   const [showSignatureModal, setShowSignatureModal] = useState(false)
   const [showWatermarkModal, setShowWatermarkModal] = useState(false)
   const [showIdCardComposer, setShowIdCardComposer] = useState(false)
+  const [showPhotoOptimizer, setShowPhotoOptimizer] = useState(false)
+  const [optimizerInitialFiles, setOptimizerInitialFiles] = useState([])
+  const [optimizerInitialPages, setOptimizerInitialPages] = useState([])
 
   // Progress and errors
   const [isProcessingBatch, setIsProcessingBatch] = useState(false)
@@ -49,6 +53,7 @@ export function App() {
   // Top hidden input refs for camera/gallery in editor
   const cameraInputRef = useRef(null)
   const galleryInputRef = useRef(null)
+  const optimizerInputRef = useRef(null)
 
   // Initial load: Fetch document history and staged photos
   useEffect(() => {
@@ -508,9 +513,22 @@ export function App() {
     setShowIdCardComposer(true)
   }
 
+  // Open Universal Photo Optimizer
+  const handleOpenPhotoOptimizerFiles = (files = []) => {
+    setOptimizerInitialFiles(files)
+    setOptimizerInitialPages([])
+    setShowPhotoOptimizer(true)
+  }
+
+  const handleOpenPhotoOptimizerFromPages = () => {
+    setOptimizerInitialFiles([])
+    setOptimizerInitialPages(pages)
+    setShowPhotoOptimizer(true)
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
-      {/* Hidden inputs always attached to DOM for camera and gallery */}
+      {/* Hidden inputs always attached to DOM for camera, gallery and optimizer */}
       <input
         type="file"
         ref={cameraInputRef}
@@ -537,12 +555,30 @@ export function App() {
           }
         }}
       />
+      <input
+        type="file"
+        ref={optimizerInputRef}
+        accept="image/*,.heic,.heif"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            handleOpenPhotoOptimizerFiles(Array.from(e.target.files))
+            e.target.value = ''
+          }
+        }}
+      />
 
       {/* Header */}
       <Header
         viewMode={viewMode}
         onSwitchView={setViewMode}
         onReset={handleCloseDocument}
+        onOpenOptimizer={() => {
+          setOptimizerInitialFiles([])
+          setOptimizerInitialPages([])
+          setShowPhotoOptimizer(true)
+        }}
         docTitle={currentDocTitle}
         pageCount={pages.length}
       />
@@ -572,6 +608,7 @@ export function App() {
             onNewScanCamera={handleNewScanCamera}
             onNewScanGallery={handleNewScanGallery}
             onNewScanIdCard={handleNewScanIdCard}
+            onOpenOptimizer={() => optimizerInputRef.current?.click()}
             onDeleteDocument={handleDeleteDocument}
             onRenameDocument={handleRenameDocument}
           />
@@ -652,6 +689,16 @@ export function App() {
                 >
                   <Images className="w-3.5 h-3.5 text-blue-600" />
                   <span>+ Galería</span>
+                </button>
+
+                <button
+                  onClick={handleOpenPhotoOptimizerFromPages}
+                  type="button"
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-sky-800 bg-sky-50 hover:bg-sky-100 rounded-xl transition border border-sky-200/90 shadow-2xs active:scale-95"
+                  title="Optimizar peso de las páginas y convertir formatos"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Optimizar</span>
                 </button>
 
                 <button
@@ -763,6 +810,7 @@ export function App() {
           pages={pages}
           activePageIndex={activePageIndex}
           docTitle={currentDocTitle}
+          onOpenOptimizer={handleOpenPhotoOptimizerFromPages}
           onClose={() => setShowExportModal(false)}
         />
       )}
@@ -795,6 +843,19 @@ export function App() {
             setViewMode('editor')
           }}
           onClose={() => setShowIdCardComposer(false)}
+        />
+      )}
+
+      {/* Universal Photo Optimizer Modal */}
+      {showPhotoOptimizer && (
+        <PhotoOptimizerModal
+          initialFiles={optimizerInitialFiles}
+          initialPages={optimizerInitialPages}
+          onClose={() => {
+            setShowPhotoOptimizer(false)
+            setOptimizerInitialFiles([])
+            setOptimizerInitialPages([])
+          }}
         />
       )}
     </div>

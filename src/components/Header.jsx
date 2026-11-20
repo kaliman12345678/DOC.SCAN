@@ -1,11 +1,12 @@
 import React from 'react'
 import { Logo } from './Logo'
-import { History, Plus } from 'lucide-react'
+import { History, Plus, Sparkles } from 'lucide-react'
 
 export function Header({
   viewMode, // 'history' | 'editor'
   onSwitchView,
   onReset,
+  onOpenOptimizer,
   docTitle,
   pageCount = 0
 }) {
@@ -22,6 +23,18 @@ export function Header({
 
         {/* View Switcher / Actions */}
         <div className="flex items-center gap-2">
+          {/* Quick Optimizer Button */}
+          <button
+            onClick={onOpenOptimizer}
+            type="button"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/30 transition active:scale-95"
+            title="Optimizar y convertir fotos a JPG, PNG, WebP o PDF"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span className="hidden sm:inline">Optimizar Fotos</span>
+            <span className="sm:hidden">Optimizar</span>
+          </button>
+
           {/* History Button */}
           <button
             onClick={() => onSwitchView('history')}

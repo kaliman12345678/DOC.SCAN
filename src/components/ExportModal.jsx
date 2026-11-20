@@ -7,7 +7,8 @@ import {
   X,
   FileText,
   Loader2,
-  Layers
+  Layers,
+  Sparkles
 } from 'lucide-react'
 import { exportToPdf, exportSinglePagePdf, downloadPagesAsImages, sharePdf } from '../utils/pdfExport'
 
@@ -15,6 +16,7 @@ export function ExportModal({
   pages,
   activePageIndex,
   docTitle = 'Documento_Escaneado',
+  onOpenOptimizer,
   onClose
 }) {
   const [name, setName] = useState(docTitle)
@@ -227,6 +229,35 @@ export function ExportModal({
                   className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 accent-blue-600"
                 />
               </label>
+            </div>
+          )}
+
+          {/* Quick link to Universal Optimizer */}
+          {onOpenOptimizer && (
+            <div className="p-3 bg-gradient-to-r from-blue-50 to-sky-50 border border-blue-200/90 rounded-2xl flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <span className="text-xs font-bold text-slate-900 block">
+                    ¿Quieres optimizar peso o convertir a WebP/PNG?
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Ajusta presets para WhatsApp, límites de 1 MB o comprime por lote.
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose()
+                  onOpenOptimizer()
+                }}
+                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shrink-0 shadow-sm active:scale-95 transition"
+              >
+                Abrir Optimizador
+              </button>
             </div>
           )}
 

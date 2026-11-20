@@ -22,6 +22,7 @@ export function DocumentHistory({
   onNewScanCamera,
   onNewScanGallery,
   onNewScanIdCard,
+  onOpenOptimizer,
   onDeleteDocument,
   onRenameDocument
 }) {
@@ -80,6 +81,16 @@ export function DocumentHistory({
 
           {/* Quick Action Buttons in Blue Palette */}
           <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={onOpenOptimizer}
+              type="button"
+              className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg shadow-sky-500/30 active:scale-95 transition border border-sky-400/30"
+              title="Optimiza y convierte fotos para WhatsApp, Web o Apps sin pasar por el escáner"
+            >
+              <Sparkles className="w-4 h-4 text-amber-200" />
+              <span>Optimizar Foto / Galería</span>
+            </button>
+
             <button
               onClick={onNewScanCamera}
               type="button"
@@ -148,6 +159,14 @@ export function DocumentHistory({
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={onOpenOptimizer}
+              type="button"
+              className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-md shadow-sky-500/25 active:scale-95 transition"
+            >
+              <Sparkles className="w-4 h-4 text-amber-200" />
+              <span>Optimizar Foto / Galería</span>
+            </button>
             <button
               onClick={onNewScanCamera}
               type="button"
